@@ -69,7 +69,7 @@ class Order_EweiShopV2Model
 		$data = array( "status" => ($params["result"] == "success" ? 1 : 0) );
 		$ordersn_tid = $params["tid"];
 		$ordersn = rtrim($ordersn_tid, "TR");
-		$order = pdo_fetch("select id,uniacid,ordersn, price,openid,dispatchtype,addressid,carrier,status,isverify,deductcredit2,`virtual`,isvirtual,couponid,isvirtualsend,isparent,paytype,merchid,agentid,createtime,buyagainprice,istrade,tradestatus,iscycelbuy from " . tablename("ewei_shop_order") . " where  ordersn=:ordersn and uniacid=:uniacid limit 1", array( ":uniacid" => $_W["uniacid"], ":ordersn" => $ordersn ));
+		$order = pdo_fetch("select id,uniacid,ordersn, price,goodsprice,openid,dispatchtype,addressid,carrier,status,isverify,deductcredit2,`virtual`,isvirtual,couponid,isvirtualsend,isparent,paytype,merchid,agentid,createtime,buyagainprice,istrade,tradestatus,iscycelbuy,share_id from " . tablename("ewei_shop_order") . " where  ordersn=:ordersn and uniacid=:uniacid limit 1", array( ":uniacid" => $_W["uniacid"], ":ordersn" => $ordersn ));
 		$plugincoupon = com("coupon");
 		if( $plugincoupon ) 
 		{
@@ -81,7 +81,7 @@ class Order_EweiShopV2Model
 		}
 		$orderid = $order["id"];
 		$ispeerpay = $this->checkpeerpay($orderid);
-		if( !empty($ispeerpay) ) 
+		if( !empty($ispeerpay) )
 		{
 			$peerpay_info = (double) pdo_fetchcolumn("select SUM(price) price from " . tablename("ewei_shop_order_peerpay_payinfo") . " where pid=:pid limit 1", array( ":pid" => $ispeerpay["id"] ));
 			if( $peerpay_info < $ispeerpay["peerpay_realprice"] ) 
@@ -124,9 +124,9 @@ class Order_EweiShopV2Model
 			}
 			if( $order["istrade"] == 0 ) 
 			{
-				if( $order["status"] == 0 ) 
+				if( $order["status"] == 0 )
 				{
-					if( !empty($order["virtual"]) && com("virtual") ) 
+					if( !empty($order["virtual"]) && com("virtual") )
 					{
 						if (p('lottery') && empty($ispeerpay)) 
 							{
@@ -140,7 +140,7 @@ class Order_EweiShopV2Model
 					}
 					if( $order["isvirtualsend"] ) 
 					{
-						if (p('lottery') && empty($ispeerpay)) 
+						if (p('lottery') && empty($ispeerpay))
 							{
 								$res = p('lottery')->getLottery($order['openid'], 1, array('money' => $order['price'], 'paytype' => 1));
 								if ($res) 
@@ -159,6 +159,8 @@ class Order_EweiShopV2Model
 					}
 					else 
 					{
+					    //vewen
+                        //支付成功回掉，写会员支付逻辑
 						$change_data["status"] = 1;
 					}
 					$change_data["paytime"] = $time;
@@ -167,11 +169,19 @@ class Order_EweiShopV2Model
 						$change_data["merchshow"] = 1;
 					}
 					pdo_update("ewei_shop_order", $change_data, array( "id" => $order["id"] ));
-					if( $order["iscycelbuy"] == 1 && p("cycelbuy") ) 
+					//判断赏金佣金
+					if ($order["share_id"]!=0&&!empty($order["share_id"])&&$order["merchid"]!=0){
+					    m("merch")->order($order["id"]);
+					}
+					
+					//fbb 贡献值订单
+					m("devote")->rewardorder($order["id"]);
+					
+					if( $order["iscycelbuy"] == 1 && p("cycelbuy") )
 					{
 						p("cycelbuy")->cycelbuy_periodic($order["id"]);
 					}
-					if( $order["isparent"] == 1 ) 
+					if( $order["isparent"] == 1 )
 					{
 						$this->setChildOrderPayResult($order, $time, 1);
 					}
@@ -181,7 +191,8 @@ class Order_EweiShopV2Model
 						com("coupon")->sendcouponsbytask($order["id"]);
 						com("coupon")->backConsumeCoupon($order["id"]);
 					}
-					if( $order["isparent"] == 1 ) 
+
+					if( $order["isparent"] == 1 )
 					{
 						$child_list = $this->getChildOrder($order["id"]);
 						foreach( $child_list as $k => $v ) 
@@ -192,6 +203,52 @@ class Order_EweiShopV2Model
 					else 
 					{
 						m("notice")->sendOrderMessage($order["id"]);
+						//购买成功--商家消息
+						if ($order["merchid"]!=0){
+						    $merch_user=pdo_fetch("select * from ".tablename("ewei_shop_merch_user")." where id=:id",array(':id'=>$order["merchid"]));
+						    if (!empty($merch_user["wxopenid"])){
+						        //获取商品信息
+						        $goods=pdo_fetchall("select * from ".tablename("ewei_shop_order_goods")." where orderid=:orderid",array(':orderid'=>$order["id"]));
+						        $goods_name="";
+						        foreach ($goods as $g){
+						            $good=pdo_fetch("select * from ".tablename("ewei_shop_goods")." where id=:good_id",array(':good_id'=>$g["goodsid"]));
+						            if (empty($goos_name)){
+						                $goods_name=$good["title"];
+						            }else{
+						                $goods_name=$goods_name.",".$good["title"];
+						            }
+						        }
+						        $postdata=array(
+						            'keyword1'=>array(
+						                'value'=>$merch_user["merchname"],
+						                'color' => '#ff510'
+						            ),
+						            'keyword2'=>array(
+						                'value'=>$order["ordersn"],
+						                'color' => '#ff510'
+						            ),
+						            'keyword3'=>array(
+						                'value'=>$goods_name,
+						                'color' => '#ff510'
+						            ),
+						            'keyword4'=>array(
+						                'value'=>$order["goodsprice"],
+						                'color' => '#ff510'
+						            ),
+						            'keyword5'=>array(
+						                'value'=>$order["price"],
+						                'color' => '#ff510'
+						            ),
+						            'keyword6'=>array(
+						                'value'=>"用户已下单，请登录商家后台及时对订单处理",
+						                'color' => '#ff510'
+						            )
+						            
+						        );
+						       p("app")->mysendNotice($merch_user["wxopenid"], $postdata, "", "si0GH6bbqNTByQrSRhxRl06CKUSKz473JrbdHwBSbts");
+						    }
+						}
+						
 					}
 					if( $order["isparent"] == 1 ) 
 					{
@@ -310,7 +367,8 @@ class Order_EweiShopV2Model
 		$this->setStocksAndCredits($orderid, 3);
 		m("member")->upgradeLevel($order["openid"]);
 		$this->setGiveBalance($orderid, 1);
-		if( com("coupon") ) 
+
+        if( com("coupon") )
 		{
 			com("coupon")->sendcouponsbytask($order["id"]);
 		}
@@ -319,7 +377,7 @@ class Order_EweiShopV2Model
 			com("coupon")->backConsumeCoupon($order["id"]);
 		}
 		m("notice")->sendOrderMessage($orderid);
-		if( p("commission") ) 
+		if( p("commission") )
 		{
 			p("commission")->checkOrderPay($order["id"]);
 			p("commission")->checkOrderFinish($order["id"]);
@@ -361,7 +419,12 @@ class Order_EweiShopV2Model
 			}
 			p("task")->checkTaskProgress($order["price"], "order_all", "", $order["openid"]);
 			$goodslist = pdo_fetchall("SELECT goodsid FROM " . tablename("ewei_shop_order_goods") . " WHERE orderid = :orderid AND uniacid = :uniacid", array( ":orderid" => $order["id"], ":uniacid" => $order["uniacid"] ));
-			foreach( $goodslist as $item ) 
+
+            $this->write_log('===='.$order['status'].'====');
+//            if($order['status']==1){
+//                $this->reward($goodslist,$order['openid'],$order);//lihanwen 会员推荐返佣金
+//            }
+			foreach( $goodslist as $item )
 			{
 				p("task")->checkTaskProgress(1, "goods", 0, $order["openid"], $item["goodsid"]);
 			}
@@ -386,7 +449,183 @@ class Order_EweiShopV2Model
 				p("lottery")->getLotteryList($order["openid"], array( "lottery_id" => $res ));
 			}
 		}
+
 	}
+
+
+    /**
+     * 记录log
+     * @param $data
+     */
+    public function write_log($data){
+        $url  = 'log.txt';
+        $dir_name = dirname($url);
+        if(!file_exists($dir_name)) {
+            $res = mkdir(iconv("UTF-8","GBK",$dir_name),0777,true);
+        }
+        $fp = fopen($url,"a");//打开文件资源通道 不存在则自动创建
+        fwrite($fp,var_export($data,true)."\r\n");//写入文件
+        fclose($fp);//关闭资源通道
+    }
+
+    /**
+     *  会员推荐返佣金,与会员关系绑定
+     * @param $goodslist
+     */
+	public function reward($goodslist,$openid,$order){
+	    foreach ($goodslist as $val){
+	        if($val['cates']=='4'){
+	            m('reward')->addReward($openid);
+                $this->write_log('===='.$val['cates'].'====');
+            }
+            //店主开通店铺
+
+	        if($val['goodsid']=='7') {
+                $this->openstore($order['id']);
+                //给购买人赠送990卡路里
+                m('member')->shop_reward($openid, 5);
+            }
+	        if($order['agentid']){//会员关系绑定@lihanwen
+	            //推荐人信息
+                $agentmemberInfo = pdo_get('ewei_shop_member', array('id' =>$order['agentid']));
+                if($agentmemberInfo){
+                    m('member')->setagent(array('agentopenid'=>$agentmemberInfo["openid"],'openid'=>$openid,'goodsid'=>$val['goodsid']));
+                }
+            }
+            $memberInfo = pdo_get('ewei_shop_member', array('openid' =>$order['openid']));
+	        if($memberInfo['agentid']>0){
+                m('member')->memberAgentCount($val['goodsid'],$memberInfo['agentid']);
+            }
+        }
+	}
+
+    /**
+     * 开通店铺
+     */
+	public function openstore($orderid){
+        global $_W;
+        $orderInfo = pdo_fetch("select * from " . tablename("ewei_shop_order") . " where  id = " . $orderid);
+        $memberInfo = pdo_fetch("select * from " . tablename("ewei_shop_member") . " where  openid = '".$orderInfo['openid']."'");
+
+        if($orderInfo['carrier']){
+            $addressInfo = unserialize($orderInfo['carrier']);
+            if(!$addressInfo) return false;
+            if(!$addressInfo['carrier_mobile'] || !$addressInfo['carrier_realname']) return false;
+            if($addressInfo['carrier_mobile']) $carrier_mobile = $addressInfo['carrier_mobile'];
+            if($addressInfo['carrier_realname']) $carrier_realname = $addressInfo['carrier_realname'];
+        }else{
+            return false;
+        }
+
+        $data['mobile'] = $data['merchname'] = $carrier_mobile;
+        $data['status'] = 1;
+        $data['accounttime'] = time();
+        $data['jointime'] = time();
+        $data['status'] = 1;
+        $data['uniacid'] = $data['groupid'] = 1;
+        $data['realname'] = $carrier_realname;
+        $data['member_id'] = $memberInfo['id'];
+        $data['payopenid'] = $data['wxopenid'] = $orderInfo['openid'];
+        $merchInfo = pdo_fetch("select * from " . tablename("ewei_shop_merch_user") . " where  mobile = '" . $data['mobile'] . "'");
+        if($merchInfo) return true;
+
+        pdo_insert("ewei_shop_merch_user", $data);
+        $id = pdo_insertid();
+        $account["merchid"] = $id;
+        $salt = "";
+        $pwd = "";
+        if (empty($account) || empty($account["salt"]) || !empty($_GPC["pwd"])) {
+            $salt = random(8);
+            while (1) {
+                $saltcount = pdo_fetchcolumn("select count(*) from " . tablename("ewei_shop_merch_account") . " where salt=:salt limit 1", array(":salt" => $salt));
+                if ($saltcount <= 0) {
+                    break;
+                }
+
+                $salt = random(8);
+            }
+            $pwd = md5('12345678' . $salt);
+        } else {
+            $salt = $account["salt"];
+            $pwd = $account["pwd"];
+        }
+        $account = array("uniacid" => $_W["uniacid"], "merchid" => $id, "username" => $data['mobile'], "pwd" => $pwd, "salt" => $salt, "status" => 1, "perms" => serialize(array()), "isfounder" => 1);
+        pdo_insert("ewei_shop_merch_account", $account);
+        $accountid = pdo_insertid();
+        pdo_update("ewei_shop_merch_user", array("accountid" => $accountid), array("id" => $id));
+        plog("merch.user.add", "添加商户 ID: " . $data["id"] . " 商户名: " . $data["merchname"] . "<br/>帐号: " . $data["username"] . "<br/>子帐号数: " . $data["accounttotal"] . "<br/>到期时间: " . date("Y-m-d", $data["accounttime"]));
+        //发送短信
+        $this->opensend(2,$data['mobile'],array($data['mobile']));
+        return true;
+    }
+
+    /**
+     *  发送阿里大鱼短信
+     * @param $id
+     * @param $mobile
+     * @param $data
+     * @return bool
+     */
+    public function opensend($id,$mobile,$data)
+    {
+        $send = false;
+
+        if (!empty($id)) {
+            $item = pdo_fetch('SELECT * FROM ' . tablename('ewei_shop_sms') . ' WHERE id=:id', array(':id' => $id));
+
+            if (!empty($item)) {
+                $item['data'] = iunserializer($item['data']);
+                if (!empty($item['data']) && is_array($item['data'])) {
+                    $send = true;
+                }
+                else {
+                    $errmsg = '模板数据错误，请编辑后重试!';
+                }
+            }
+            else {
+                $errmsg = '模板不存在，请刷新重试!';
+            }
+        }
+        else {
+            $errmsg = '参数错误，请刷新重试!';
+        }
+
+        if ($send) {
+            $mobile = trim($mobile);
+            $postdata = $data;
+
+            if (empty($mobile)) {
+                show_json(0, '手机号不能为空!');
+            }
+
+            if (empty($postdata)) {
+                show_json(0, '数据为空!');
+            }
+
+            if ($item['type'] == 'juhe' || $item['type'] == 'dayu' || $item['type'] == 'aliyun' || $item['type'] == 'aliyun_new') {
+                $sms_data = array();
+
+                foreach ($item['data'] as $i => $d) {
+                    $sms_data[$d['data_temp']] = $postdata[$i];
+                }
+            }
+            else {
+                if ($item['type'] == 'emay') {
+                    $sms_data = trim($postdata);
+                }
+            }
+
+            $result = com('sms')->send($mobile, $item['id'], $sms_data, false);
+            if (empty($result['status'])) {
+                return false;
+            }
+            else {
+               return true;
+            }
+        }
+
+    }
+
 	public function getGoodsCredit($goods) 
 	{
 		global $_W;
@@ -1322,23 +1561,23 @@ class Order_EweiShopV2Model
 		$goods_num = count($goods);
 		$seckill_payprice = 0;
 		$seckill_dispatchprice = 0;
-		$user_city = "";
-		$user_city_code = "";
-		if( empty($new_area) ) 
+		$user_province = "";
+		$user_province_code = "";
+		if( empty($new_area) )
 		{
 			if( !empty($address) ) 
 			{
-				$user_city = $user_city_code = $address["city"];
+				$user_province = $user_province_code = $address["province"];
 			}
 			else 
 			{
-				if( !empty($member["city"]) ) 
+				if( !empty($member["province"]) )
 				{
-					if( !strexists($member["city"], "市") ) 
+					if( !strexists($member["province"], "省") )
 					{
-						$member["city"] = $member["city"] . "市";
+						$member["province"] = $member["province"] . "省";
 					}
-					$user_city = $user_city_code = $member["city"];
+					$user_province = $user_province_code = $member["province"];
 				}
 			}
 		}
@@ -1346,16 +1585,16 @@ class Order_EweiShopV2Model
 		{
 			if( !empty($address) ) 
 			{
-				$user_city = $address["city"] . $address["area"];
-				$user_city_code = $address["datavalue"];
+			    $user_province = $address["province"] . $address["city"];
+				$user_province_code = $address["datavalue"];
 			}
 		}
 		$is_merchid = 0;
 		foreach( $goods as $g ) 
 		{
 			$realprice += $g["ggprice"];
-			$dispatch_merch[$g["merchid"]] = 0;
-			$total_array[$g["goodsid"]] += $g["total"];
+			$dispatch_merch[$g["merchid"]] = 0;  //商家的物流费用
+			$total_array[$g["goodsid"]] += $g["total"];  //订单每个商品的购物数量
 			$totalprice_array[$g["goodsid"]] += $g["ggprice"];
 			if( !empty($g["merchid"]) ) 
 			{
@@ -1383,9 +1622,19 @@ class Order_EweiShopV2Model
 			{
 				$sendfree = true;
 			}
-			if( !empty($g["issendfree"]) ) 
+			if( $g["issendfree"]  == 1 )
 			{
-				$sendfree = true;
+			    //如果包邮  但是是偏远地区邮费又不是空  那么 是偏远地域
+			    $area = explode(';',$g['edareas']);
+			    //如果他没设置  偏远  普通 默认 没有偏远地域
+			    //if(!in_array($user_province,$area) && !empty($g['edareas'])&& $g['remote_dispatchprice'] != 0){
+			    if(!in_array($user_province,$area) && !empty($g['edareas'])&& $g['remote_dispatchprice'] >= 0){
+			    	$dispatch_price += $g['remote_dispatchprice'];
+			        $is_remote = 1;
+			    }else{
+			    	$is_remote = 0;
+			    }
+			    $sendfree = true;
 			}
 			else 
 			{
@@ -1412,24 +1661,26 @@ class Order_EweiShopV2Model
 						{
 							if( !empty($address) ) 
 							{
-								if( !in_array($user_city_code, $gareas) ) 
+							    //如果满件包邮 但是是需要偏远地区加油费
+								if( in_array($user_province_code, $gareas) )
 								{
 									$sendfree = true;
 								}
 							}
 							else 
 							{
-								if( !empty($member["city"]) ) 
-								{
-									if( !in_array($member["city"], $gareas) ) 
-									{
-										$sendfree = true;
-									}
-								}
-								else 
-								{
-									$sendfree = true;
-								}
+                                if( !empty($member["province"]) )
+                                {
+                                    //如果满件包邮 但是是需要偏远地区加油费
+                                    if( in_array($member["province"], $gareas) )
+                                    {
+                                        $sendfree = true;
+                                    }
+                                }
+                                else
+                                {
+                                    $sendfree = true;
+                                }
 							}
 						}
 					}
@@ -1457,21 +1708,23 @@ class Order_EweiShopV2Model
 						{
 							if( !empty($address) ) 
 							{
-								if( !in_array($user_city_code, $gareas) ) 
+							    //如果满额包邮 但是是需要偏远地区加油费
+								if( in_array($user_province_code, $gareas) )
 								{
 									$sendfree = true;
 								}
 							}
 							else 
 							{
-								if( !empty($member["city"]) ) 
+								if( !empty($member["province"]) )
 								{
-									if( !in_array($member["city"], $gareas) ) 
+								    //如果满额包邮 但是是需要偏远地区加油费   如果在基础地域  则免邮费
+									if( in_array($member["province"], $gareas) )
 									{
 										$sendfree = true;
 									}
 								}
-								else 
+								else
 								{
 									$sendfree = true;
 								}
@@ -1484,7 +1737,7 @@ class Order_EweiShopV2Model
 			{
 				if( $city_express_data["state"] == 0 && $city_express_data["is_dispatch"] == 1 ) 
 				{
-					if( !empty($user_city) ) 
+					if( !empty($user_province) )
 					{
 						if( empty($new_area) ) 
 						{
@@ -1494,7 +1747,7 @@ class Order_EweiShopV2Model
 						{
 							$citys = m("dispatch")->getAllNoDispatchAreas("", 1);
 						}
-						if( !empty($citys) && in_array($user_city_code, $citys) && !empty($citys) ) 
+						if( !empty($citys) && in_array($user_province_code, $citys) && !empty($citys) )
 						{
 							$isnodispatch = 1;
 							$has_goodsid = 0;
@@ -1506,38 +1759,57 @@ class Order_EweiShopV2Model
 							{
 								$nodispatch_array["goodid"][] = $g["goodsid"];
 								$nodispatch_array["title"][] = $g["title"];
-								$nodispatch_array["city"] = $user_city;
+								$nodispatch_array["city"] = $user_province;
 							}
 						}
 					}
-					if( 0 < $g["dispatchprice"] && !$sendfree && $isnodispatch == 0 ) 
+					if( (0 < $g["dispatchprice"] || 0 < $g['remote_dispatchprice']) && !$sendfree && $isnodispatch == 0  )
 					{
+					    //如果有偏远地域差价  加上他 没有 还是基础价
+					    $remote_dispatchprice = $g['remote_dispatchprice'] > 0 ? $g['remote_dispatchprice'] : 0;
 						$dispatch_merch[$merchid] += $g["dispatchprice"];
-						if( $seckillinfo && $seckillinfo["status"] == 0 ) 
-						{
-							$seckill_dispatchprice += $g["dispatchprice"];
-						}
-						else 
-						{
-							$dispatch_price += $g["dispatchprice"];
-						}
+						$gareas = explode(';',$g['edareas']);
+                        //if(!empty($address)&&in_array($user_province_code, $gareas) || !empty($member['province'])&&in_array($member['province'],$gareas)){
+                        //先判断地址是不是空  基础邮费
+                        if(!empty($address) ) {
+                            if (in_array($user_province_code, $gareas) || !empty($member['province']) && in_array($member['province'], $gareas)) {
+                                if ($seckillinfo && $seckillinfo["status"] == 0) {
+                                    $seckill_dispatchprice += $g["dispatchprice"];
+                                } else {
+                                    $dispatch_price += $g["dispatchprice"];
+                                }
+                                $is_remote = 0;
+                            } else {
+                                if ($seckillinfo && $seckillinfo["status"] == 0) {
+                                    $seckill_dispatchprice += $g["dispatchprice"] + $remote_dispatchprice;
+                                } else {
+                                    $dispatch_price += $g["dispatchprice"] + $remote_dispatchprice;
+                                }
+                                $is_remote = 1;
+                            }
+                        }else{
+                            $dispatch_price = $g["dispatchprice"];
+			                $is_remote = 0;
+                        }
 					}
 				}
 				else 
 				{
 					if( $city_express_data["state"] == 1 ) 
 					{
-						if( 0 < $g["dispatchprice"] && !$sendfree ) 
+						if( ($g["dispatchprice"] >= 0 || $g['remote_dispatchprice'] >= 0) && !$sendfree )
 						{
-							if( $city_express_data["is_sum"] == 1 ) 
+						    //如果有偏远地域差价  加上他 没有 还是基础差价
+                            $remote_dispatchprice = $g['remote_dispatchprice'] >= 0 ?$g['remote_dispatchprice'] :0;
+							if( $city_express_data["is_sum"] == 1 )
 							{
-								$dispatch_price += $g["dispatchprice"];
+								$dispatch_price += $g["dispatchprice"]+$remote_dispatchprice;
 							}
-							else 
+							else
 							{
-								if( $dispatch_price < $g["dispatchprice"] ) 
+								if( $dispatch_price < $g["dispatchprice"] )
 								{
-									$dispatch_price = $g["dispatchprice"];
+									$dispatch_price = $g["dispatchprice"]+$remote_dispatchprice;
 								}
 							}
 						}
@@ -1546,7 +1818,7 @@ class Order_EweiShopV2Model
 					{
 						$nodispatch_array["goodid"][] = $g["goodsid"];
 						$nodispatch_array["title"][] = $g["title"];
-						$nodispatch_array["city"] = $user_city;
+						$nodispatch_array["city"] = $user_province;
 					}
 				}
 			}
@@ -1573,8 +1845,9 @@ class Order_EweiShopV2Model
 							$isnoarea = 0;
 							$dkey = $dispatch_data["id"];
 							$isdispatcharea = intval($dispatch_data["isdispatcharea"]);
-							if( !empty($user_city) ) 
+							if( !empty($user_province) )
 							{
+							    	//$isdispatcharea  == 0
 								if( empty($isdispatcharea) ) 
 								{
 									if( empty($new_area) ) 
@@ -1585,7 +1858,7 @@ class Order_EweiShopV2Model
 									{
 										$citys = m("dispatch")->getAllNoDispatchAreas($dispatch_data["nodispatchareas_code"], 1);
 									}
-									if( !empty($citys) && in_array($user_city_code, $citys) ) 
+									if( !empty($citys) && in_array($user_province_code, $citys) )
 									{
 										$isnoarea = 1;
 									}
@@ -1600,16 +1873,17 @@ class Order_EweiShopV2Model
 									{
 										$citys = m("dispatch")->getAllNoDispatchAreas("", 1);
 									}
-									if( !empty($citys) && in_array($user_city_code, $citys) ) 
+									if( !empty($citys) && in_array($user_province_code, $citys) )
 									{
 										$isnoarea = 1;
 									}
 									if( empty($isnoarea) ) 
 									{
-										$isnoarea = m("dispatch")->checkOnlyDispatchAreas($user_city_code, $dispatch_data);
+										$isnoarea = m("dispatch")->checkOnlyDispatchAreas($user_province_code, $dispatch_data);
 									}
 								}
-								if( !empty($isnoarea) ) 
+								//$isnoarea   这玩意又是0
+								if( !empty($isnoarea) )
 								{
 									$isnodispatch = 1;
 									$has_goodsid = 0;
@@ -1621,7 +1895,7 @@ class Order_EweiShopV2Model
 									{
 										$nodispatch_array["goodid"][] = $g["goodsid"];
 										$nodispatch_array["title"][] = $g["title"];
-										$nodispatch_array["city"] = $user_city;
+										$nodispatch_array["city"] = $user_province;
 									}
 								}
 							}
@@ -1682,7 +1956,7 @@ class Order_EweiShopV2Model
 						{
 							$nodispatch_array["goodid"][] = $g["goodsid"];
 							$nodispatch_array["title"][] = $g["title"];
-							$nodispatch_array["city"] = $user_city;
+							$nodispatch_array["city"] = $user_province;
 						}
 					}
 				}
@@ -1721,7 +1995,8 @@ class Order_EweiShopV2Model
 				$dispatch_info[$dispatch_data["id"]]["price"] += $dprice;
 				$dispatch_info[$dispatch_data["id"]]["freeprice"] = intval($dispatch_data["freeprice"]);
 			}
-			if( !empty($dispatch_info) ) 
+			//不包邮
+			if( !empty($dispatch_info) && !$sendfree)
 			{
 				foreach( $dispatch_info as $k => $v ) 
 				{
@@ -1732,7 +2007,17 @@ class Order_EweiShopV2Model
 				}
 				if( $dispatch_price < 0 ) 
 				{
-					$dispatch_price = 0;
+				    $dispatch_price = 0;
+				}else{
+				    //如果是模板的话 加上偏远地区的差价
+		                    $gareas = explode(';',$g['edareas']);
+		                    if(in_array($user_province_code, $gareas) || !empty($member['province']) && in_array($member['province'], $gareas)){
+		                        $is_remote = 0;
+		                        $dispatch_price += $g['dispatchprice'];
+		                    }else{
+		                        $is_remote = 1;
+		                        $dispatch_price += $g['remote_dispatchprice'] + $g['dispatchprice'];
+		                    }
 				}
 			}
 		}
@@ -1765,7 +2050,7 @@ class Order_EweiShopV2Model
 									$areas = explode(";", $merchset["enoughareas"]);
 									if( !empty($address) ) 
 									{
-										if( !in_array($address["city"], $areas) ) 
+										if( !in_array($address["province"], $areas) )
 										{
 											$dispatch_price = $dispatch_price - $dispatch_merch[$merchid];
 											$dispatch_merch[$merchid] = 0;
@@ -1773,9 +2058,9 @@ class Order_EweiShopV2Model
 									}
 									else 
 									{
-										if( !empty($member["city"]) ) 
+										if( !empty($member["province"]) )
 										{
-											if( !in_array($member["city"], $areas) ) 
+											if( !in_array($member["province"], $areas) )
 											{
 												$dispatch_price = $dispatch_price - $dispatch_merch[$merchid];
 												$dispatch_merch[$merchid] = 0;
@@ -1783,7 +2068,7 @@ class Order_EweiShopV2Model
 										}
 										else 
 										{
-											if( empty($member["city"]) ) 
+											if( empty($member["province"]) )
 											{
 												$dispatch_price = $dispatch_price - $dispatch_merch[$merchid];
 												$dispatch_merch[$merchid] = 0;
@@ -1899,6 +2184,7 @@ class Order_EweiShopV2Model
 		$data["nodispatch_array"] = $nodispatch_array;
 		$data["seckill_dispatch_price"] = $seckill_dispatchprice;
 		$data["city_express_state"] = $city_express_data["state"];
+		$data['isdispatcharea'] = $is_remote;
 		return $data;
 	}
 	public function changeParentOrderPrice($parent_order) 

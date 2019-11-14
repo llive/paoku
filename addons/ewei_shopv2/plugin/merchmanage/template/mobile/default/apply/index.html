@@ -9,13 +9,15 @@
     </div>
     <div class='fui-content navbar' >
         <div class='fui-cell-group'>
-
+			<div class='settle-explain'>提现收取3%支付通道手续费,实际到账金额减去3%</div>
             <div class='fui-cell'>
                 <div class='fui-cell-info'>订单金额</div>
             </div>
             <div class='fui-cell'>
                 <div class='fui-cell-label big' style='width:auto;font-size:1.2rem;'>￥</div>
-                <div class='fui-cell-info' style='font-size:1.2rem;' >{php echo number_format($item['orderprice'],2)}</div>
+            <!--   <div class='fui-cell-info' style='font-size:1.2rem;' >{php echo number_format($item['orderprice'],2)}</div>-->   
+             <div class='fui-cell-info' style='font-size:1.2rem;' >{php echo number_format($item['realprice'],2)}</div>
+            
             </div>
             <div class='fui-cell'>
                 <div class='fui-cell-info'>可提现金额</div>

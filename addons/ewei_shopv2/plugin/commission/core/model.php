@@ -904,6 +904,9 @@ if( !class_exists("CommissionModel") )
 				$level3 = count($level3_agentids);
 				$agentcount += $level3;
 			}
+            //lihanwen
+            $agentInfo = pdo_fetchall("select id  from " . tablename("ewei_shop_member") . " where  agentid=:agentid", array( ":agentid" => $member["id"] ));
+            $agentcount = count($agentInfo);
 			$member["agentcount"] = $agentcount;
 			$member["ordercount"] = $ordercount;
 			$member["ordermoney"] = $ordermoney;
@@ -1306,6 +1309,12 @@ if( !class_exists("CommissionModel") )
 			}
 			return $_W["siteroot"] . "addons/ewei_shopv2/data/poster/" . $_W["uniacid"] . "/" . $file;
 		}
+
+        /**
+         * 分享奖励
+         * @param string $openid
+         * @return |null
+         */
 		public function checkAgent($openid = "") 
 		{
 			global $_W;
@@ -1337,6 +1346,7 @@ if( !class_exists("CommissionModel") )
 				if( $clickcount <= 0 ) 
 				{
 					$click = array( "uniacid" => $_W["uniacid"], "openid" => $openid, "from_openid" => $parent["openid"], "clicktime" => time() );
+					if(0)
 					pdo_insert("ewei_shop_commission_clickcount", $click);
 					pdo_update("ewei_shop_member", array( "clickcount" => $parent["clickcount"] + 1 ), array( "uniacid" => $_W["uniacid"], "id" => $parent["id"] ));
 				}
@@ -1352,7 +1362,8 @@ if( !class_exists("CommissionModel") )
 				$first = m("member")->memberRadisCount($redis_key);
 				if( !$first ) 
 				{
-					$first = pdo_fetchcolumn("select count(*) from " . tablename("ewei_shop_member") . " where uniacid=:uniacid limit 1", array( ":uniacid" => $_W["uniacid"] ));
+// 					$first = pdo_fetchcolumn("select count(*) from " . tablename("ewei_shop_member") . " where uniacid=:uniacid limit 1", array( ":uniacid" => $_W["uniacid"] ));
+				    $first = pdo_fetchcolumn("select id from " . tablename("ewei_shop_member") . " where uniacid=:uniacid order by id desc limit 1", array( ":uniacid" => $_W["uniacid"] ));
 					m("member")->memberRadisCount($redis_key, $first);
 				}
 			}
@@ -1615,6 +1626,12 @@ if( !class_exists("CommissionModel") )
 				{
 					pdo_update("ewei_shop_member", array( "agentid" => $parent["id"], "childtime" => $time ), array( "uniacid" => $_W["uniacid"], "id" => $member["id"] ));
 				}
+                //添加绑定日志
+                $add = ['openid'=>$member['openid'],'item'=>'commission','value'=>'绑定上级:'.$member['openid'].'/'.$member['nickname'].',绑定上级id:'.$parent['id'].'-'.$parent['nickname'],'create_time'=>date('Y-m-d H:i:s',time())];
+                m('memberoperate')->addlog($add);
+                //粉丝
+                m("member")->fans($member["id"],$parent["id"]);
+                
 				if( p("dividend") ) 
 				{
 					$this->saveRelation($member["id"], $parent["id"], 1);
@@ -2070,7 +2087,7 @@ if( !class_exists("CommissionModel") )
 			{
 				return NULL;
 			}
-			$order = pdo_fetch("select id,openid, ordersn,goodsprice,agentid,finishtime from " . tablename("ewei_shop_order") . " where id=:id and status>=3 and uniacid=:uniacid limit 1", array( ":id" => $orderid, ":uniacid" => $_W["uniacid"] ));
+			$order = pdo_fetch("select id,price,openid, ordersn,goodsprice,agentid,finishtime,status,share_id from " . tablename("ewei_shop_order") . " where id=:id and status>=3 and uniacid=:uniacid limit 1", array( ":id" => $orderid, ":uniacid" => $_W["uniacid"] ));
 			if( empty($order) ) 
 			{
 				return NULL;
@@ -2087,13 +2104,110 @@ if( !class_exists("CommissionModel") )
 				return NULL;
 			}
 
-            $order_goods = pdo_fetchall("select goodsid from " . tablename("ewei_shop_order_goods") . " where orderid=:orderid and uniacid=:uniacid  ", array( ":uniacid" => $_W["uniacid"], ":orderid" => $order["id"] ), "goodsid");
+            $order_goods = pdo_fetchall("select goodsid,total from " . tablename("ewei_shop_order_goods") . " where orderid=:orderid and uniacid=:uniacid  ", array( ":uniacid" => $_W["uniacid"], ":orderid" => $order["id"] ));
 			foreach ($order_goods as $vv){
 			    $goods=pdo_get('ewei_shop_goods',array('id'=>$vv['goodsid']));
 			    if ($goods['agentlevel']>$member['agentlevel']){
-			        pdo_update('ewei_shop_member',array('agentlevel'=>$goods['agentlevel']),array('id'=>$member['id']));
-                }
+			        pdo_update('ewei_shop_member',array('agentlevel'=>$goods['agentlevel'],'agentlevel_time'=>date("Y-m-d",time())),array('id'=>$member['id']));
+			        //会员卡路里奖励
+			        if ($goods['agentlevel']==1||$goods['agentlevel']==2){
+			            if ($goods['agentlevel']==1){
+                          //$credit=9.9;
+                            //折扣宝
+			                $credit=99;
+			                $info="购买健康达人会员赠送";
+			            }else{
+			                //$credit=99;
+			                //折扣宝
+			                $credit=990;
+			                $info="购买星选达人会员赠送";
+			            }
+			            
+			            //m('member')->setCredit($openid, 'credit1', $credit, $info);
+			            m('member')->setCredit($openid, 'credit3', $credit, $info);
+			        }
+			        //fbb
+			        //升级提醒
+			        $commission=pdo_fetch("select * from ".tablename("ewei_shop_commission_level")." where id=:id",array(':id'=>$goods["agentlevel"]));
+			        $postdata=array(
+			            'keyword1'=>array(
+			                'value'=>$commission["levelname"],
+			                'color' => '#ff510'
+			            ),
+			            'keyword2'=>array(
+			                'value'=>$order["price"],
+			                'color' => '#ff510'
+			            ),
+			            'keyword3'=>array(
+			                'value'=>date("Y-m-d",time()),
+			                'color' => '#ff510'
+			            ),
+			            'keyword4'=>array(
+			                'value'=>"已经成功开通",
+			                'color' => '#ff510'
+			            )
+			        );
+
+			        p("app")->mysendNotice($order["openid"], $postdata, $order["id"], "2nQmrU1YkfMK0EWEO4v0QmL89Xpx1v3DqZk-LMsnd80");
+                
+			        //fbb推荐提醒
+			        $this->wmessage($openid);
+			        
+			    /*    if( !empty($member["agentid"]) )
+			        {
+			            $parent = m("member")->getMember($member["agentid"]);
+			            //判断上级是否是店主
+			            if ($parent["agentlevel"]==5){
+			                
+			                $postdata=array(
+			                    'keyword1'=>array(
+			                        'value'=>$parent["nickname"],
+			                        'color' => '#ff510'
+			                    ),
+			                    'keyword2'=>array(
+			                        'value'=>$member["nickname"],
+			                        'color' => '#ff510'
+			                    ),
+			                    'keyword3'=>array(
+			                        'value'=>"该会员现已升级为".$commission["levelname"],
+			                        'color' => '#ff510'
+			                    ),
+			                    'keyword4'=>array(
+			                        'value'=>"您推荐的用户现已升级为".$commission["levelname"]."级别会员","收益以达到您余额，请注意查收",
+			                        'color' => '#ff510'
+			                    )
+			                );
+			                
+			                p("app")->mysendNotice($parent["openid"], $postdata, "", "L62g_dw8f-ruX3YKQDxsJH0J8-CBQrGFVMXZ1wTe4PM");
+			                
+			            }
+			           
+			        }*/
+			        
+			       
+			    }
+			    
+			    //fbb 贡献值奖励
+			    //1.直推30人阶段奖励
+			    m("devote")->rewardone($openid);
+			    //直推付费会员
+			    m("devote")->rewardthree($openid,$goods['agentlevel']);
+			    
+			    
+			    //fbb 贡献值
+			    //判断是否是金主权益礼包
+			    if ($vv['goodsid']==1467){
+			        m("devote")->rewardfour($openid,$vv["total"],$order);
+			    }
+			    
             }
+           
+            $goods = pdo_fetchall("select og.goodsid,g.cates,og.price,g.title,g.thumb,og.total,g.credit,og.optionid,og.optionname as optiontitle,g.isverify,g.storeids from " . tablename("ewei_shop_order_goods") . " og " . " left join " . tablename("ewei_shop_goods") . " g on g.id=og.goodsid " . " where og.orderid=:orderid", array(":orderid" => $orderid ));
+            //lihanwen 会员奖励
+            if($order['status']==3) {
+                $res = m('order')->reward($goods, $openid, $order);
+            }
+
             $this->orderFinishTask($order, ($set["selfbuy"] ? true : false), $member);
 			$time = time();
 			$become_check = intval($set["become_check"]);
@@ -2101,11 +2215,13 @@ if( !class_exists("CommissionModel") )
 			$parentisagent = true;
 			if( !empty($member["agentid"]) ) 
 			{
-				$parent = m("member")->getMember($member["agentid"]);
+			    $parent = m("member")->getMember($member["agentid"]);
+			    
 				if( empty($parent) || $parent["isagent"] != 1 || $parent["status"] != 1 ) 
 				{
 					$parentisagent = false;
 				}
+				
 			}
 			if( !$isagent && $set["become_order"] == "1" ) 
 			{
@@ -2673,7 +2789,8 @@ if( !class_exists("CommissionModel") )
 				}
 			}
 		}
-		public function upgradeLevelByAgent($openid) 
+
+        public function upgradeLevelByAgent($openid)
 		{
 			global $_W;
 			if( empty($openid) ) 
@@ -3786,6 +3903,42 @@ if( !class_exists("CommissionModel") )
 				pdo_query("DELETE FROM " . tablename("ewei_shop_commission_relation") . " WHERE id = " . $item["id"] . " and level >" . $item["level"]);
 				$this->saveRelation($item["id"], $item["pid"], $item["level"]);
 			}
+		}
+
+        //卡路里奖励到账提醒
+        //bopenid为被推荐人的
+       public function wmessage($bopenid){
+            //获取推荐人的用户信息
+            $bmember = m("member")->getMember($bopenid);//被推荐人的
+            if(!$bmember['agentid']) return false;
+            $tmember = m("member")->getMember($bmember['agentid']);//推荐人的
+            $agentInfo=array();
+            if($bmember['agentlevel']==0){
+                $agentInfo['levelname'] = "普通会员";
+            }else{
+                $agentInfo = pdo_fetch("select id,levelname from " . tablename("ewei_shop_commission_level") . " where id = :id", array( ":id" => $bmember['agentlevel'] ));
+            }
+
+            $postdata=array(//推荐人
+                'keyword1'=>array(
+                    'value'=>$tmember["nickname"],
+                    'color' => '#ff510'
+                ),//被推荐人
+                'keyword2'=>array(
+                    'value'=>$bmember["nickname"],
+                    'color' => '#ff510'
+                ),//级别
+                'keyword3'=>array(
+                    'value'=>$agentInfo['levelname'],
+                    'color' => '#ff510'
+                ),//备注
+                'keyword4'=>array(
+                    'value'=>'每一步，都值得鼓励，点击查看小程序明细',
+                    'color' => '#ff510'
+                )
+            );
+            p("app")->mysendNotice($tmember["openid"], $postdata, "", "L62g_dw8f-ruX3YKQDxsJH0J8-CBQrGFVMXZ1wTe4PM");
+            return true;
 		}
 	}
 }

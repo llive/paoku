@@ -224,6 +224,42 @@ if (!class_exists("AppModel")) {
             return $result;
         }
 
+        //fanbeibei 消息提醒
+        public function mysendNotice($openid = NULL, $datas = array(),  $orderid = 0, $template_id="")
+        {
+            global $_W;
+            if (empty($openid) || empty($datas)) {
+                return error(-1, 'openid或datas');
+            }
+            //获取formid
+            $formid=pdo_fetch("select * from ".tablename("ewei_shop_member_formid")." where openid=:openid and time>=:time and type=0 order by create_time asc  limit 1",array(':openid'=>$openid,':time'=>time()));
+            if (empty($formid)){
+                return false;
+            }else{
+                $prepay_id=$formid["formid"];
+                //更新fomid表
+                pdo_update("ewei_shop_member_formid",array('type'=>1),array('id'=>$formid["id"]));
+            }
+            $openid = str_replace('sns_wa_', '', $openid);
+            $appset = m('common')->getSysset('app');
+            if (empty($appset)) {
+                return error(-1, '未读取到小程序设置');
+            }
+            
+            
+            $page = 'pages/order/detail/index?id=' . $orderid;
+            if (empty($orderid)) {
+                $page = '';
+            }
+            $obj = json_encode(array('touser' => $openid, 'template_id' => $template_id, 'page' => $page, 'form_id' => $prepay_id, 'data' => $datas));
+            $accessToken = $this->getAccessToken();
+            if (is_error($accessToken)) {
+                return error(-1, 'accessToken获取失败');
+            }
+            load()->func('communication');
+            $result = ihttp_post('https://api.weixin.qq.com/cgi-bin/message/wxopen/template/send?access_token=' . $accessToken, $obj);
+            return $result;
+        }
         protected function replaceTemplate($str, $datas = array())
         {
             foreach ($datas as $d) {
@@ -265,7 +301,7 @@ if (!class_exists("AppModel")) {
             return true;
         }
 
-        public function getPage($id = 0, $mobile = false)
+        public function getPage($id = 0, $mobile = false,$pagess=1,$select=0)
         {
             global $_W;
             if (empty($id)) {
@@ -406,8 +442,22 @@ if (!class_exists("AppModel")) {
                                 }
                                 unset($child);
                             } else if ($item['id'] == 'goods') {
-                                if (!(empty($item['data']))) {
-                                    if (!(empty($item['params']['goodsscroll']))) {
+                               /*if (!(empty($item['data']))) {
+                                   if($select==2){//最新的
+                                       $args = array( "pagesize" =>150, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'id desc,(minprice-deduct) asc,deduct desc' );
+                                   }elseif($select==1){//销量
+                                       $args = array( "pagesize" =>150, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'sales desc,(minprice-deduct) asc,deduct desc' );
+                                   }else{//价格
+                                       $args = array( "pagesize" =>150, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'(minprice-deduct) asc,deduct desc' );
+
+                                   }
+                                    $item['data'] = array();
+                                    $item['data'] = m('goods')->getList($args);
+                                    $item['total'] = $item['data']['total'];
+                                    $item['pagesize'] = 30;
+                                    $item['data'] = $this->getGoodsList($item['data']);
+
+                                   if (!(empty($item['params']['goodsscroll']))) {
                                         $swiperpage = 1;
                                         if ($item['style']['liststyle'] == 'block') {
                                             $swiperpage = 2;
@@ -417,6 +467,19 @@ if (!class_exists("AppModel")) {
                                         $data_temp = array();
                                         $k = 0;
                                         $i = 1;
+                                       if($select==2){//最新的
+                                           $args = array( "pagesize" =>1, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'id desc,(minprice-deduct) asc,deduct desc' );
+                                       }elseif($select==1){//销量
+                                           $args = array( "pagesize" =>1, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'sales desc,(minprice-deduct) asc,deduct desc' );
+                                       }else{//价格
+                                           $args = array( "pagesize" =>1, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'(minprice-deduct) asc,deduct desc' );
+
+                                       }
+                                        $item['data'] = array();
+                                        $item['data'] = m('goods')->getList($args);
+                                        $item['total'] = $item['data']['total'];
+                                        $item['pagesize'] = 30;
+                                        $item['data'] = $this->getGoodsList($item['data']);
                                         foreach ($item['data'] as $childid => $child) {
                                             $data_temp[$k][] = $child;
                                             if ($i < $swiperpage) {
@@ -425,6 +488,7 @@ if (!class_exists("AppModel")) {
                                                 $i = 1;
                                                 ++$k;
                                             }
+
                                         }
                                         $item['data_temp'] = $data_temp;
                                         unset($swiperpage, $data_temp, $k, $i);
@@ -446,6 +510,9 @@ if (!class_exists("AppModel")) {
                                             $item['params']['showicon'] == 0;
                                         }
                                     }
+//                                    if( isset($child["deduct"]) ){
+//                                        $item['data'][$childid]["showprice"] = round($child["price"]-$child["deduct"],2);
+//                                    }
                                     if (($item['params']['saleout'] == 0) && !(empty($_W['shopset']['shop']['saleout']))) {
                                         $item['params']['saleout'] = tomedia($_W['shopset']['shop']['saleout']);
                                         if (empty($item['params']['saleout'])) {
@@ -454,9 +521,10 @@ if (!class_exists("AppModel")) {
                                     } else if (($item['params']['saleout'] == 1) && empty($item['params']['saleout'])) {
                                         $item['params']['saleout'] = tomedia('../addons/ewei_shopv2/plugin/diypage/static/images/default/saleout-' . $item['style']['saleoutstyle'] . '.png');
                                     }
+
                                 } else {
                                     unset($page['data']['items'][$itemid]);
-                                }
+                                }*/
                             } else if (($item['id'] == 'topmenu') && !(empty($item['style']['showtype']))) {
                                 if (!(empty($item['data']))) {
                                     $swiperpage = ((empty($item['style']['pagenum']) ? 8 : $item['style']['pagenum']));
@@ -497,6 +565,123 @@ if (!class_exists("AppModel")) {
             return $page;
         }
 
+
+
+        public function zktGoodsList($select,$pagess){
+                if($select==2){//最新的
+                    $args = array( "pagesize" =>10, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'id desc,(minprice-deduct) asc,deduct desc' );
+                }elseif($select==1){//销量
+                    $args = array( "pagesize" =>10, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'sales desc,(minprice-deduct) asc,deduct desc' );
+                }else{//价格
+                    $args = array( "pagesize" =>10, "page" => $pagess,"deduct_type"=>2,"from" => "miniprogram", "order" =>'(minprice-deduct) asc,deduct desc' );
+                }
+                $item['data'] = array();
+                $item['data'] = m('goods')->getList($args);
+                $item['total'] = $item['data']['total'];
+                $item['pagesize'] = 10;
+                $item['data'] = $this->getGoodsList($item['data'],$pagess);
+                return $item;
+        }
+
+        public function getGoodsList($goodsList,$pages){
+            $newGoodsList = array();
+            $day=date("Y-m-d");
+            $adv=pdo_fetchall("select * from ".tablename("ewei_shop_goodtop")." where is_del=0 and start_date<=:start_date and end_date>=:end_date",array(":start_date"=>$day,":end_date"=>$day));
+            if ($pages==1){
+                foreach ($goodsList['list'] as $key=>$goods){
+                    //判断是否包含
+                   
+                    $gid=$this->inarray($adv, $key);
+                    if ($gid==0){
+                            $newGoodsList[$key]['gid'] = $goods['id'];
+                            $newGoodsList[$key]['deduct'] = $goods['deduct'];
+                            $newGoodsList[$key]['deduct_type'] = $goods['deduct_type'];
+                            $newGoodsList[$key]['title'] = $goods['title'];
+                            $newGoodsList[$key]['subtitle'] = $goods['subtitle'];
+                            $newGoodsList[$key]['price'] = $goods['minprice'];
+                            $newGoodsList[$key]['productprice'] = $goods['productprice'];
+                            $newGoodsList[$key]['thumb'] = $goods['thumb'];
+                            $newGoodsList[$key]['total'] = $goods['total'];
+                            $newGoodsList[$key]['ctype'] = $goods['type'];
+                            $newGoodsList[$key]['sales'] = $goods['sales'];
+                            $newGoodsList[$key]['video'] = $goods['video'];
+                            $newGoodsList[$key]['seecommission'] = $goods['seecommission'];
+                            $newGoodsList[$key]['cansee'] = $goods['cansee'];
+                            $newGoodsList[$key]['seetitle'] = $goods['seetitle'];
+                            $newGoodsList[$key]['bargain'] = $goods['bargain'];
+                            $newGoodsList[$key]['showprice'] = round($goods['minprice']-$goods['deduct'],2);
+                            $newGoodsList[$key]['issendfree'] = $goods['issendfree'];
+                            //添加广告表示
+                            $newGoodsList[$key]['adv']=0;
+                            $newGoodsList[$key]['main_target']="";
+                            $newGoodsList[$key]['substandard']="";
+                        
+                    }else{
+                        $a=pdo_get("ewei_shop_goodtop",array("id"=>$gid));
+                        $gd=pdo_get("ewei_shop_goods",array("id"=>$a["goodid"]));
+                        $newGoodsList[$key]['gid'] = $gd['id'];
+                        $newGoodsList[$key]['deduct'] = $gd['deduct'];
+                        $newGoodsList[$key]['deduct_type'] = $gd['deduct_type'];
+                        $newGoodsList[$key]['title'] = $gd['title'];
+                        $newGoodsList[$key]['subtitle'] = $gd['subtitle'];
+                        $newGoodsList[$key]['price'] = $gd['minprice'];
+                        $newGoodsList[$key]['productprice'] = $gd['productprice'];
+                        $newGoodsList[$key]['thumb'] = tomedia($gd['thumb']);
+                        $newGoodsList[$key]['total'] = $gd['total'];
+                        $newGoodsList[$key]['ctype'] = $gd['type'];
+                        $newGoodsList[$key]['sales'] = $gd['sales'];
+                        $newGoodsList[$key]['video'] = $gd['video'];
+                        $newGoodsList[$key]['seecommission'] = $gd['seecommission'];
+                        $newGoodsList[$key]['cansee'] = $gd['cansee'];
+                        $newGoodsList[$key]['seetitle'] = $gd['seetitle'];
+                        $newGoodsList[$key]['bargain'] = $gd['bargain'];
+                        $newGoodsList[$key]['showprice'] = round($gd['minprice']-$gd['deduct'],2);
+                        $newGoodsList[$key]['issendfree'] = $gd['issendfree'];
+                        //添加广告表示
+                        $newGoodsList[$key]['adv']=1;
+                        $newGoodsList[$key]['main_target']=$a["main_target"];
+                        $newGoodsList[$key]['substandard']=$a["substandard"];
+                    }
+                }
+                
+            }else{
+                foreach ($goodsList['list'] as $key=>$goods){
+                    $newGoodsList[$key]['gid'] = $goods['id'];
+                    $newGoodsList[$key]['deduct'] = $goods['deduct'];
+                    $newGoodsList[$key]['deduct_type'] = $goods['deduct_type'];
+                    $newGoodsList[$key]['title'] = $goods['title'];
+                    $newGoodsList[$key]['subtitle'] = $goods['subtitle'];
+                    $newGoodsList[$key]['price'] = $goods['minprice'];
+                    $newGoodsList[$key]['productprice'] = $goods['productprice'];
+                    $newGoodsList[$key]['thumb'] = $goods['thumb'];
+                    $newGoodsList[$key]['total'] = $goods['total'];
+                    $newGoodsList[$key]['ctype'] = $goods['type'];
+                    $newGoodsList[$key]['sales'] = $goods['sales'];
+                    $newGoodsList[$key]['video'] = $goods['video'];
+                    $newGoodsList[$key]['seecommission'] = $goods['seecommission'];
+                    $newGoodsList[$key]['cansee'] = $goods['cansee'];
+                    $newGoodsList[$key]['seetitle'] = $goods['seetitle'];
+                    $newGoodsList[$key]['bargain'] = $goods['bargain'];
+                    $newGoodsList[$key]['showprice'] = round($goods['minprice']-$goods['deduct'],2);
+                    $newGoodsList[$key]['issendfree'] = $goods['issendfree'];
+                    //添加广告表示
+                    $newGoodsList[$key]['adv']=0;
+                    $newGoodsList[$key]['main_target']="";
+                    $newGoodsList[$key]['substandard']="";
+                }
+            }
+            return $newGoodsList;
+        }
+       
+        //判断是否包含
+        public function inarray($arary,$key){
+            foreach ($arary as $k=>$v){
+               if ($v["sort"]==$key){
+                   return $v["id"];
+               } 
+            }
+            return 0;
+        }
         public function calculate($str = NULL, $pagetype = false)
         {
             global $_W;
@@ -729,6 +914,7 @@ if (!class_exists("AppModel")) {
             }
             if ($item['id'] == 'goods') {
                 if (empty($item['params']['goodsdata']) && !(empty($item['data'])) && is_array($item['data'])) {
+                  
                     $goodsids = array();
                     foreach ($item['data'] as $index => $data) {
                         if (!(empty($data['gid']))) {
@@ -738,7 +924,7 @@ if (!class_exists("AppModel")) {
                     if (!(empty($goodsids)) && is_array($goodsids)) {
                         $goodsids = array_filter($goodsids);
                         $newgoodsids = implode(',', $goodsids);
-                        $goods = pdo_fetchall('select deduct,id, title, subtitle, thumb, minprice, sales, salesreal, total, showlevels, showgroups, bargain,hascommission,nocommission,commission,commission1_rate,commission1_rate,marketprice,commission1_pay,maxprice, productprice, video,`type` from ' . tablename('ewei_shop_goods') . ' where id in( ' . $newgoodsids . ' ) and status=1 and deleted=0 and checked=0 and uniacid=:uniacid order by displayorder desc ', array(':uniacid' => $_W['uniacid']));
+                        $goods = pdo_fetchall('select deduct_type,deduct,id, title, subtitle, thumb, minprice, sales, salesreal, total, showlevels, showgroups, bargain,hascommission,nocommission,commission,commission1_rate,commission1_rate,marketprice,commission1_pay,maxprice, productprice, video,`type` from ' . tablename('ewei_shop_goods') . ' where id in( ' . $newgoodsids . ' ) and status=1 and deleted=0 and checked=0 and uniacid=:uniacid order by displayorder desc ', array(':uniacid' => $_W['uniacid']));
                     }
                 } else if (($item['params']['goodsdata'] == 1) && !(empty($item['params']['cateid'])) && $mobile) {
                     $orderby = ' displayorder desc, createtime desc';
@@ -764,7 +950,7 @@ if (!class_exists("AppModel")) {
                             $orderby = ' order by minprice asc, displayorder desc';
                         }
                         $item['params']['goodsnum'] = ((!(empty($item['params']['goodsnum'])) ? $item['params']['goodsnum'] : 20));
-                        $goods = pdo_fetchall('select deduct,id, title, subtitle, thumb, minprice, sales, salesreal, total, showlevels, showgroups, bargain, productprice,hascommission,nocommission,commission,commission1_rate,commission1_rate,marketprice,commission1_pay,maxprice,video,`type` from ' . tablename('ewei_shop_goods') . ' where id in( ' . $group['goodsids'] . ' ) and status=1 and `deleted`=0 and `status`=1 and uniacid=:uniacid ' . $orderby . ' limit ' . $item['params']['goodsnum'], array(':uniacid' => $_W['uniacid']));
+                        $goods = pdo_fetchall('select deduct_type,deduct,id, title, subtitle, thumb, minprice, sales, salesreal, total, showlevels, showgroups, bargain, productprice,hascommission,nocommission,commission,commission1_rate,commission1_rate,marketprice,commission1_pay,maxprice,video,`type` from ' . tablename('ewei_shop_goods') . ' where id in( ' . $group['goodsids'] . ' ) and status=1 and `deleted`=0 and `status`=1 and uniacid=:uniacid ' . $orderby . ' limit ' . $item['params']['goodsnum'], array(':uniacid' => $_W['uniacid']));
                     }
                 } else if ((2 < $item['params']['goodsdata']) && $mobile) {
                     $args = array('pagesize' => $item['params']['goodsnum'], 'page' => 1, 'order' => ' displayorder desc, createtime desc');
@@ -831,7 +1017,7 @@ if (!class_exists("AppModel")) {
                                     if ($mobile && !(m('goods')->visit($good, $this->member))) {
                                         continue;
                                     }
-                                    $item['data'][$childid] = array('gid' => $good['id'],'deduct' => $good['deduct'], 'title' => $good['title'], 'subtitle' => $good['subtitle'], 'price' => $good['minprice'], 'thumb' => $good['thumb'], 'total' => $good['total'], 'productprice' => $good['productprice'], 'ctype' => $good['type'], 'sales' => $good['sales'] + intval($good['salesreal']), 'video' => $good['video'], 'seecommission' => $good['seecommission'], 'cansee' => ($cansee ? $good['cansee'] : $cansee), 'seetitle' => $good['seetitle'], 'bargain' => $good['bargain']);
+                                    $item['data'][$childid] = array('gid' => $good['id'],'deduct_type'=>$good['deduct_type'],'deduct' => $good['deduct'], 'title' => $good['title'], 'subtitle' => $good['subtitle'], 'price' => $good['minprice'], 'thumb' => $good['thumb'], 'total' => $good['total'], 'productprice' => $good['productprice'], 'ctype' => $good['type'], 'sales' => $good['sales'] + intval($good['salesreal']), 'video' => $good['video'], 'seecommission' => $good['seecommission'], 'cansee' => ($cansee ? $good['cansee'] : $cansee), 'seetitle' => $good['seetitle'], 'bargain' => $good['bargain']);
                                 }
                             }
                         }
@@ -869,7 +1055,7 @@ if (!class_exists("AppModel")) {
                         }
                         foreach ($goods as $index => $good) {
                             $childid = 'C' . rand(1000000000, 9999999999);
-                            $item['data'][$childid] = array('gid' => $good['id'],'deduct' => $good['deduct'], 'title' => $good['title'], 'subtitle' => $good['subtitle'], 'price' => $good['minprice'], 'thumb' => $good['thumb'], 'total' => $good['total'], 'productprice' => $good['productprice'], 'ctype' => $good['type'], 'seecommission' => $good['seecommission'], 'cansee' => $good['cansee'], 'seetitle' => $good['seetitle'], 'sales' => $good['sales'] + intval($good['salesreal']), 'video' => $good['video'], 'bargain' => $good['bargain']);
+                            $item['data'][$childid] = array('gid' => $good['id'],'deduct_type'=>$good['deduct_type'],'deduct' => $good['deduct'], 'title' => $good['title'], 'subtitle' => $good['subtitle'], 'price' => $good['minprice'], 'thumb' => $good['thumb'], 'total' => $good['total'], 'productprice' => $good['productprice'], 'ctype' => $good['type'], 'seecommission' => $good['seecommission'], 'cansee' => $good['cansee'], 'seetitle' => $good['seetitle'], 'sales' => $good['sales'] + intval($good['salesreal']), 'video' => $good['video'], 'bargain' => $good['bargain']);
                         }
                     }
                 }

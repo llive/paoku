@@ -55,7 +55,7 @@ class Refund_EweiShopV2Page extends AppMobilePage
 
 		$order['cannotrefund'] = false;
 
-		if ($order['status'] == 2) {
+		if ($order['status'] == 2||$order["status"]==1) {
 			$goods = pdo_fetchall('select og.goodsid, og.price, og.total, og.optionname, g.cannotrefund, g.thumb, g.title from' . tablename('ewei_shop_order_goods') . ' og left join ' . tablename('ewei_shop_goods') . ' g on g.id=og.goodsid where og.orderid=' . $order['id']);
 
 			if (!empty($goods)) {
@@ -86,8 +86,9 @@ class Refund_EweiShopV2Page extends AppMobilePage
 	{
 		global $_W;
 		global $_GPC;
+		//var_dump($this->globalData());die;
 		extract($this->globalData());
-
+  
 		if ($order['status'] == '-1') {
 			app_error(AppError::$OrderCanNotResubmit);
 		}
@@ -149,9 +150,9 @@ class Refund_EweiShopV2Page extends AppMobilePage
 		$rtype = intval($_GPC['rtype']);
 
 		if ($rtype != 2) {
-			if (empty($price) && $order['deductprice'] == 0) {
-				app_error(AppError::$OrderCanNotRefund, '退款金额不能为0元');
-			}
+//			if (empty($price) && $order['deductprice'] == 0) {
+//				app_error(AppError::$OrderCanNotRefund, '退款金额不能为0元');
+//			}
 
 			if ($order['refundprice'] < $price) {
 				app_error(AppError::$OrderCanNotRefund, '退款金额不能超过' . $order['refundprice'] . '元');

@@ -41,7 +41,7 @@ class Down_EweiShopV2Page extends CommissionMobileLoginPage
 		$levelcount2 = $member['level2'];
 		$levelcount3 = $member['level3'];
 		$pindex = max(1, intval($_GPC['page']));
-		$psize = 20;
+		$psize = 10;
 		if ($level == 1) 
 		{
 			$condition = ' and agentid=' . $member['id'];

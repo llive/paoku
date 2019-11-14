@@ -17,6 +17,7 @@ class Index_EweiShopV2Page extends MerchWebPage
 	{
 		global $_W;
 		global $_GPC;
+// 		var_dump(explode(".", $GLOBALS['_W']['routes']));
 		$item = pdo_fetch('select * from ' . tablename('ewei_shop_merch_user') . ' where id=:id and uniacid=:uniacid limit 1', array(':id' => $_W['uniaccount']['merchid'], ':uniacid' => $_W['uniacid']));
 		if (empty($item) || empty($item['accoutntime'])) {
 			$accounttime = strtotime('+365 day');
@@ -27,6 +28,10 @@ class Index_EweiShopV2Page extends MerchWebPage
 
 		if (!empty($item['accountid'])) {
 			$account = pdo_fetch('select * from ' . tablename('ewei_shop_merch_account') . ' where id=:id and uniacid=:uniacid limit 1', array(':id' => $item['accountid'], ':uniacid' => $_W['uniacid']));
+		}
+		if (!empty($item["wxopenid"])){
+		    $salers=pdo_fetch('select id,nickname,avatar,openid from '.tablename('ewei_shop_member').'where openid=:openid',array(':openid'=>$item["wxopenid"]));
+		   
 		}
 
 		$diyform_flag = 0;
@@ -52,7 +57,8 @@ class Index_EweiShopV2Page extends MerchWebPage
 				}
 			}
 		}
-
+        
+		
 		if ($_W['ispost']) {
 			$fdata = array();
 
@@ -64,13 +70,23 @@ class Index_EweiShopV2Page extends MerchWebPage
 				}
 			}
 
-			$data = array('uniacid' => $_W['uniacid'], 'merchname' => trim($_GPC['merchname']), 'salecate' => trim($_GPC['salecate']), 'realname' => trim($_GPC['realname']), 'mobile' => trim($_GPC['mobile']), 'desc' => trim($_GPC['desc1']), 'address' => trim($_GPC['address']), 'tel' => trim($_GPC['tel']), 'lng' => $_GPC['map']['lng'], 'lat' => $_GPC['map']['lat'], 'logo' => save_media($_GPC['logo']));
+			$data = array('uniacid' => $_W['uniacid'], 'merchname' => trim($_GPC['merchname']), 'salecate' => trim($_GPC['salecate']), 'realname' => trim($_GPC['realname']), 'mobile' => trim($_GPC['mobile']), 'desc' => trim($_GPC['desc1']), 'address' => trim($_GPC['address']), 'tel' => trim($_GPC['tel']), 'lng' => $_GPC['map']['lng'], 'lat' => $_GPC['map']['lat'], 'logo' => save_media($_GPC['logo']),'wxsignal'=>trim($_GPC["wxsignal"]),'main_business'=>trim($_GPC["main_business"]));
 
 			if ($diyform_flag) {
 				$data['diyformdata'] = iserializer($fdata);
 				$data['diyformfields'] = iserializer($fields);
 			}
-
+            
+			if (empty($_GPC['openids'])){
+			    show_json(0, '请选择绑定店主账号');
+			}elseif (sizeof($_GPC["openids"])>1){
+			    show_json(0, '仅能够绑定一个店主账号');
+			}else{
+			   
+			    $data['wxopenid'] =$_GPC['openids'][0];
+			}
+			
+			
 			pdo_update('ewei_shop_merch_user', $data, array('id' => $_W['uniaccount']['merchid']));
 			show_json(1);
 		}

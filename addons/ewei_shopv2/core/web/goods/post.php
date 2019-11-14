@@ -58,12 +58,13 @@ if ($ccard_plugin) {
     $ccard = 1;
 }
 $category = m('shop')->getFullCategory(true, true);
-$levels = m('member')->getLevels();
+//$levels = m('member')->getLevels();
+$levels = pdo_fetchall("select * from " . tablename("ewei_shop_commission_level") . " where status=1");
 foreach ($levels as &$l) {
     $l['key'] = 'level' . $l['id'];
 }
 unset($l);
-$levels = array_merge(array(array('id' => 0, 'key' => 'default', 'levelname' => (empty($_W['shopset']['shop']['levelname']) ? '默认会员' : $_W['shopset']['shop']['levelname']))), $levels);
+//$levels = array_merge(array(array('id' => 0, 'key' => 'default', 'levelname' => (empty($_W['shopset']['shop']['levelname']) ? '默认会员' : $_W['shopset']['shop']['levelname']))), $levels);
 $groups = m('member')->getGroups();
 $commission_level = pdo_fetchall('SELECT * FROM ' . tablename('ewei_shop_commission_level') . ' WHERE uniacid = \'' . $_W['uniacid'] . '\' ORDER BY commission1 asc');
 foreach ($commission_level as &$l) {
@@ -94,7 +95,18 @@ if ($_W['ispost']) {
             show_json(0, '已为此商品指定了赠品不支持线下核销');
         }
     }
-    $data = array('uniacid' => intval($_W['uniacid']), 'displayorder' => intval($_GPC['displayorder']), 'title' => trim($_GPC['goodsname']), 'subtitle' => trim($_GPC['subtitle']), 'shorttitle' => trim($_GPC['shorttitle']), 'keywords' => trim($_GPC['keywords']), 'thumb_first' => intval($_GPC['thumb_first']), 'showsales' => intval($_GPC['showsales']), 'type' => $goodstype, 'ispresell' => intval($_GPC['ispresell']), 'presellover' => intval($_GPC['presellover']), 'presellovertime' => (0 < intval($_GPC['presellovertime']) ? intval($_GPC['presellovertime']) : 0), 'presellprice' => floatval($_GPC['presellprice']), 'presellstart' => intval($_GPC['presellstart']), 'presellend' => intval($_GPC['presellend']), 'preselltimestart' => (0 < intval($_GPC['presellstart']) ? strtotime($_GPC['preselltimestart']) : 0), 'preselltimeend' => (0 < intval($_GPC['presellend']) ? strtotime($_GPC['preselltimeend']) : 0), 'presellsendtype' => intval($_GPC['presellsendtype']), 'presellsendstatrttime' => strtotime($_GPC['presellsendstatrttime']), 'presellsendtime' => intval($_GPC['presellsendtime']), 'labelname' => serialize($_GPC['labelname']), 'isrecommand' => intval($_GPC['isrecommand']), 'ishot' => intval($_GPC['ishot']), 'isnew' => intval($_GPC['isnew']), 'isdiscount' => intval($_GPC['isdiscount']), 'isdiscount_title' => trim(mb_substr($_GPC['isdiscount_title'], 0, 5, 'UTF-8')), 'isdiscount_time' => strtotime($_GPC['isdiscount_time']), 'issendfree' => intval($_GPC['issendfree']), 'isnodiscount' => intval($_GPC['isnodiscount']), 'istime' => intval($_GPC['istime']), 'timestart' => strtotime($_GPC['saletime']['start']), 'timeend' => strtotime($_GPC['saletime']['end']), 'description' => trim($_GPC['description']), 'goodssn' => trim($_GPC['goodssn']), 'unit' => trim($_GPC['unit']), 'createtime' => TIMESTAMP, 'total' => intval($_GPC['total']), 'showtotal' => intval($_GPC['showtotal']), 'totalcnf' => intval($_GPC['totalcnf']), 'unite_total' => intval($_GPC['unite_total']), 'marketprice' => $_GPC['marketprice'], 'weight' => $_GPC['weight'], 'costprice' => $_GPC['costprice'], 'productprice' => trim($_GPC['productprice']), 'productsn' => trim($_GPC['productsn']), 'credit' => trim($_GPC['credit']), 'maxbuy' => intval($_GPC['maxbuy']), 'minbuy' => intval($_GPC['minbuy']), 'usermaxbuy' => intval($_GPC['usermaxbuy']), 'hasoption' => intval($_GPC['hasoption']), 'sales' => intval($_GPC['sales']), 'share_icon' => trim($_GPC['share_icon']), 'share_title' => trim($_GPC['share_title']), 'status' => ($status != 2 ? intval($_GPC['status']) : $status), 'groupstype' => intval($_GPC['groupstype']), 'virtualsend' => intval($_GPC['virtualsend']), 'virtualsendcontent' => trim($_GPC['virtualsendcontent']), 'buyshow' => intval($_GPC['buyshow']), 'showlevels' => (is_array($_GPC['showlevels']) ? implode(',', $_GPC['showlevels']) : ''), 'buylevels' => (is_array($_GPC['buylevels']) ? implode(',', $_GPC['buylevels']) : ''), 'showgroups' => (is_array($_GPC['showgroups']) ? implode(',', $_GPC['showgroups']) : ''), 'buygroups' => (is_array($_GPC['buygroups']) ? implode(',', $_GPC['buygroups']) : ''), 'noticeopenid' => (is_array($_GPC['noticeopenid']) ? implode(',', $_GPC['noticeopenid']) : ''), 'noticetype' => (is_array($_GPC['noticetype']) ? implode(',', $_GPC['noticetype']) : ''), 'needfollow' => intval($_GPC['needfollow']), 'followurl' => trim($_GPC['followurl']), 'followtip' => trim($_GPC['followtip']), 'deduct' => $_GPC['deduct'], 'manydeduct' => $_GPC['manydeduct'], 'deduct2' => $_GPC['deduct2'], 'virtual' => ($goodstype == 3 ? intval($_GPC['virtual']) : 0), 'ednum' => intval($_GPC['ednum']), 'edareas' => trim($_GPC['edareas']), 'edareas_code' => trim($_GPC['edareas_code']), 'edmoney' => trim($_GPC['edmoney']), 'invoice' => intval($_GPC['invoice']), 'repair' => intval($_GPC['repair']), 'seven' => intval($_GPC['seven']), 'money' => trim($_GPC['money']), 'province' => trim($_GPC['province']), 'city' => trim($_GPC['city']), 'quality' => intval($_GPC['quality']), 'sharebtn' => intval($_GPC['sharebtn']), 'autoreceive' => intval($_GPC['autoreceive']), 'cannotrefund' => intval($_GPC['cannotrefund']), 'buyagain' => floatval($_GPC['buyagain']), 'buyagain_islong' => intval($_GPC['buyagain_islong']), 'buyagain_condition' => intval($_GPC['buyagain_condition']), 'buyagain_sale' => intval($_GPC['buyagain_sale']), 'diypage' => intval($_GPC['diypage']), 'cashier' => intval($_GPC['cashier']), 'video' => trim($_GPC['video']));
+
+    //fbb 折扣宝
+    if (empty($_GPC["deduct_type"])){
+        $deduct_type=1;
+    }else{
+        $deduct_type=$_GPC["deduct_type"];
+    }
+    $data = array('uniacid' => intval($_W['uniacid']), 'displayorder' => intval($_GPC['displayorder']), 'title' => trim($_GPC['goodsname']), 'subtitle' => trim($_GPC['subtitle']), 'shorttitle' => trim($_GPC['shorttitle']), 'keywords' => trim($_GPC['keywords']), 'thumb_first' => intval($_GPC['thumb_first']), 'showsales' => intval($_GPC['showsales']), 'type' => $goodstype, 'ispresell' => intval($_GPC['ispresell']), 'presellover' => intval($_GPC['presellover']), 'presellovertime' => (0 < intval($_GPC['presellovertime']) ? intval($_GPC['presellovertime']) : 0), 'presellprice' => floatval($_GPC['presellprice']), 'presellstart' => intval($_GPC['presellstart']), 'presellend' => intval($_GPC['presellend']), 'preselltimestart' => (0 < intval($_GPC['presellstart']) ? strtotime($_GPC['preselltimestart']) : 0), 'preselltimeend' => (0 < intval($_GPC['presellend']) ? strtotime($_GPC['preselltimeend']) : 0), 'presellsendtype' => intval($_GPC['presellsendtype']), 'presellsendstatrttime' => strtotime($_GPC['presellsendstatrttime']), 'presellsendtime' => intval($_GPC['presellsendtime']), 'labelname' => serialize($_GPC['labelname']), 'isrecommand' => intval($_GPC['isrecommand']), 'ishot' => intval($_GPC['ishot']), 'isnew' => intval($_GPC['isnew']), 'isdiscount' => intval($_GPC['isdiscount']), 'isdiscount_title' => trim(mb_substr($_GPC['isdiscount_title'], 0, 5, 'UTF-8')), 'isdiscount_time' => strtotime($_GPC['isdiscount_time']), 'issendfree' => intval($_GPC['issendfree']), 'isnodiscount' => intval($_GPC['isnodiscount']), 'istime' => intval($_GPC['istime']), 'timestart' => strtotime($_GPC['saletime']['start']), 'timeend' => strtotime($_GPC['saletime']['end']), 'description' => trim($_GPC['description']), 'goodssn' => trim($_GPC['goodssn']), 'unit' => trim($_GPC['unit']), 'createtime' => TIMESTAMP, 'total' => intval($_GPC['total']), 'showtotal' => intval($_GPC['showtotal']), 'totalcnf' => intval($_GPC['totalcnf']), 'unite_total' => intval($_GPC['unite_total']), 'marketprice' => $_GPC['marketprice'], 'weight' => $_GPC['weight'], 'costprice' => $_GPC['costprice'], 'productprice' => trim($_GPC['productprice']), 'productsn' => trim($_GPC['productsn']), 'credit' => trim($_GPC['credit']), 'maxbuy' => intval($_GPC['maxbuy']), 'minbuy' => intval($_GPC['minbuy']), 'usermaxbuy' => intval($_GPC['usermaxbuy']), 'hasoption' => intval($_GPC['hasoption']), 'sales' => intval($_GPC['sales']), 'share_icon' => trim($_GPC['share_icon']), 'share_title' => trim($_GPC['share_title']), 'status' => ($status != 2 ? intval($_GPC['status']) : $status), 'groupstype' => intval($_GPC['groupstype']), 'virtualsend' => intval($_GPC['virtualsend']), 'virtualsendcontent' => trim($_GPC['virtualsendcontent']), 'buyshow' => intval($_GPC['buyshow']), 'showlevels' => (is_array($_GPC['showlevels']) ? implode(',', $_GPC['showlevels']) : ''), 'buylevels' => (is_array($_GPC['buylevels']) ? implode(',', $_GPC['buylevels']) : ''), 'showgroups' => (is_array($_GPC['showgroups']) ? implode(',', $_GPC['showgroups']) : ''), 'buygroups' => (is_array($_GPC['buygroups']) ? implode(',', $_GPC['buygroups']) : ''), 'noticeopenid' => (is_array($_GPC['noticeopenid']) ? implode(',', $_GPC['noticeopenid']) : ''), 'noticetype' => (is_array($_GPC['noticetype']) ? implode(',', $_GPC['noticetype']) : ''), 'needfollow' => intval($_GPC['needfollow']), 'followurl' => trim($_GPC['followurl']), 'followtip' => trim($_GPC['followtip']), 'deduct' => $_GPC['deduct'],'deduct_type'=>$deduct_type, 'manydeduct' => $_GPC['manydeduct'], 'deduct2' => $_GPC['deduct2'], 'virtual' => ($goodstype == 3 ? intval($_GPC['virtual']) : 0), 'ednum' => intval($_GPC['ednum']), 'edareas' => trim($_GPC['edareas']), 'edareas_code' => trim($_GPC['edareas_code']), 'edmoney' => trim($_GPC['edmoney']), 'invoice' => intval($_GPC['invoice']), 'repair' => intval($_GPC['repair']), 'seven' => intval($_GPC['seven']), 'money' => trim($_GPC['money']), 'province' => trim($_GPC['province']), 'city' => trim($_GPC['city']), 'quality' => intval($_GPC['quality']), 'sharebtn' => intval($_GPC['sharebtn']), 'autoreceive' => intval($_GPC['autoreceive']), 'cannotrefund' => intval($_GPC['cannotrefund']), 'buyagain' => floatval($_GPC['buyagain']), 'buyagain_islong' => intval($_GPC['buyagain_islong']), 'buyagain_condition' => intval($_GPC['buyagain_condition']), 'buyagain_sale' => intval($_GPC['buyagain_sale']), 'diypage' => intval($_GPC['diypage']), 'cashier' => intval($_GPC['cashier']), 'video' => trim($_GPC['video']),'agent_devote'=>trim($_GPC["agent_devote"]),'my_devote'=>trim($_GPC["my_devote"]),'is_right'=>trim($_GPC['is_right']));
+
+    if($_GPC['marketprice']<$data['deduct']) $data['deduct'] =$_GPC['marketprice'];
+    if($_GPC['marketprice']<$data['deduct2']) $data['deduct2'] =$_GPC['marketprice'];
+
     if (p('offic')) {
         $data['officthumb'] = save_media($_GPC['officthumb']);
     }
@@ -216,6 +228,9 @@ if ($_W['ispost']) {
     $pcateid = 0;
     $ccateid = 0;
     $tcateid = 0;
+    if (!$_GPC['cates']) {
+        show_json(0, '请选择商品分类');
+    }
     if (is_array($_GPC['cates'])) {
         $cates = $_GPC['cates'];
         foreach ($cates as $key => $cid) {
@@ -306,6 +321,8 @@ if ($_W['ispost']) {
     }
     $data['dispatchtype'] = intval($_GPC['dispatchtype']);
     $data['dispatchprice'] = trim($_GPC['dispatchprice']);
+    $data['remote_dispatchprice'] = trim($_GPC['remote_dispatchprice']);
+    $data['is_remote'] = $_GPC['is_remote'];
     $data['dispatchid'] = intval($_GPC['dispatchid']);
     if ($data['total'] === -1) {
         $data['total'] = 0;
@@ -492,8 +509,15 @@ if ($_W['ispost']) {
         plog('goods.add', '添加商品 ID: ' . $id . '<br>' . ((!(empty($data['nocommission'])) ? '是否参与分销 -- 否' : '是否参与分销 -- 是')));
     } else {
         unset($data['createtime']);
-        $old_data = pdo_fetch('SELECT nocommission FROM ' . tablename('ewei_shop_goods') . ' WHERE id=:id AND uniacid=:uniacid', array(':id' => $id, ':uniacid' => $_W['uniacid']));
+        $old_data = pdo_fetch('SELECT nocommission,agentlevel FROM ' . tablename('ewei_shop_goods') . ' WHERE id=:id AND uniacid=:uniacid', array(':id' => $id, ':uniacid' => $_W['uniacid']));
+        if(in_array($id,array(3,4,5,7))){
+            $data['cates'] = 4;
+            $data['ccates'] = 4;
+        }
         pdo_update('ewei_shop_goods', $data, array('id' => $id));
+        if($_GPC['levelcontent']){
+            pdo_update('ewei_shop_commission_level',array('content'=>$_GPC['levelcontent']),array('id' => intval($old_data['agentlevel'])));
+        }
         if ($old_data['nocommission'] != $data['nocommission']) {
             plog('goods.edit', '编辑商品 ID: ' . $id . '<br>' . ((!(empty($data['nocommission'])) ? '是否参与分销 -- 否' : '是否参与分销 -- 是')));
         }
@@ -755,6 +779,11 @@ if (!(empty($id))) {
         $piclist = array_merge(array($item['thumb']), iunserializer($item['thumb_url']));
     }
     $item['content'] = m('common')->html_to_images($item['content']);
+    if(in_array($id,array(3,4,5,7))){
+        $levelInfo = pdo_fetch('SELECT * FROM ' . tablename('ewei_shop_commission_level') . ' WHERE id = :id and uniacid = :uniacid', array(':id' => $item['agentlevel'], ':uniacid' => $_W['uniacid']));
+        $item['levelcontent'] = $levelInfo['content'];
+    }
+
     $html = '';
     $discounts_html = '';
     $commission_html = '';
@@ -1074,7 +1103,7 @@ if (!(empty($id))) {
         }
     }
 }
-$dispatch_data = pdo_fetchall('select * from ' . tablename('ewei_shop_dispatch') . ' where uniacid=:uniacid and merchid=:merchid and enabled=1 order by displayorder desc', array(':uniacid' => $_W['uniacid'], ':merchid' => $merchid));
+$dispatch_data = pdo_fetchall(' select * from ' . tablename('ewei_shop_dispatch') . ' where uniacid=:uniacid and merchid=:merchid and enabled=1 order by displayorder desc', array(':uniacid' => $_W['uniacid'], ':merchid' => $merchid));
 if (p('commission')) {
     $com_set = p('commission')->getSet();
 }
@@ -1089,6 +1118,7 @@ if ($merchid == 0) {
     unset($d);
 }
 $areas = m('common')->getAreas();
+$express = pdo_getcolumn('ewei_shop_express_set',['uniacid'=>$_W['uniacid']],'express_set');
 if ($diyform) {
     $form_list = $diyform->getDiyformList();
     $dfields = iunserializer($item['diyfields']);

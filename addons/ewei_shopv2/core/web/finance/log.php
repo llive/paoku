@@ -390,7 +390,8 @@ class Log_EweiShopV2Page extends WebPage
 		$set_name = $_W["shopset"]["shop"]["name"];
 		$account_name = $_W["account"]["name"];
 		$shop_name = (empty($account_name) ? $set_name : $account_name);
-		$desc = $shop_name . "余额提现";
+		$remark = $log['remark'] != "" ? $log['remark'] :"余额提现";
+		$desc = $shop_name . $remark;
 		$data = m("common")->getSysset("pay");
 		if( !empty($data["paytype"]["withdraw"]) ) 
 		{
@@ -416,6 +417,7 @@ class Log_EweiShopV2Page extends WebPage
 		{
 			$result = m("finance")->pay($log["openid"], 1, $realmoney * 100, $log["logno"], $desc);
 		}
+        pdo_insert('log',['log'=>$result,'createtime'=>date('Y-m-d H:i:s',time())]);
 		if( is_error($result) ) 
 		{
 			show_json(0, array( "message" => $result["message"] ));
@@ -424,6 +426,7 @@ class Log_EweiShopV2Page extends WebPage
 		m("notice")->sendMemberLogMessage($log["id"]);
 		$member = m("member")->getMember($log["openid"]);
 		plog("finance.log.wechat", "余额提现 ID: " . $log["id"] . " 方式: 微信 提现金额: " . $log["money"] . " ,到账金额: " . $realmoney . " ,手续费金额 : " . $log["deductionmoney"] . "<br/>会员信息:  ID: " . $member["id"] . " / " . $member["openid"] . "/" . $member["nickname"] . "/" . $member["realname"] . "/" . $member["mobile"]);
+		pdo_insert('log',['log'=>"余额提现 ID: " . $log["id"] . " 方式: 微信 提现金额: " . $log["money"] . " ,到账金额: " . $realmoney ,'createtime'=>date('Y-m-d H:i:s',time())]);
 		show_json(1);
 	}
 	public function alipay() 
@@ -505,6 +508,7 @@ class Log_EweiShopV2Page extends WebPage
 		global $_W;
 		global $_GPC;
 		$id = intval($_GPC["id"]);
+        $reason = $_GPC["reason"]?$_GPC["reason"]:'客服会通过电话联系您';
 		$log = pdo_fetch("select * from " . tablename("ewei_shop_member_log") . " where id=:id and uniacid=:uniacid limit 1", array( ":id" => $id, ":uniacid" => $_W["uniacid"] ));
 		if( empty($log) ) 
 		{
@@ -514,15 +518,39 @@ class Log_EweiShopV2Page extends WebPage
 		{
 			show_json(0, "退款申请已经处理!");
 		}
-		pdo_update("ewei_shop_member_log", array( "status" => -1 ), array( "id" => $id, "uniacid" => $_W["uniacid"] ));
+		pdo_update("ewei_shop_member_log", array( "status" => -1 ,'refuse_reason'=>$reason ), array( "id" => $id, "uniacid" => $_W["uniacid"] ));
 		if( 0 < $log["money"] ) 
 		{
-			m("member")->setCredit($log["openid"], "credit2", $log["money"], array( 0, "余额提现退回" ));
+		    if ($log["title"]=="折扣宝提现"){
+			m("member")->setCredit($log["openid"], "credit3", $log["money"], array( 0, "折扣宝提现退回" ));
+			m("member")->setCredit($log["openid"], "credit4", $log["money"], array( 0, "折扣宝提现退回" ));
+			
+		    }else{
+		        m("member")->setCredit($log["openid"], "credit2", $log["money"], array( 0, "余额提现退回" ));
+		        
+		    }
+			
 		}
 		$member = pdo_fetchall("SELECT * FROM " . tablename("ewei_shop_member") . " WHERE uniacid =:uniacid AND openid=:openid", array( ":uniacid" => $_W["uniacid"], ":openid" => $log["openid"] ));
-		m("notice")->sendMemberLogMessage($log["id"]);
-		plog("finance.log.refuse", "拒绝余额度提现 ID: " . $log["id"] . " 金额: " . $log["money"] . " <br/>会员信息:  ID: " . $member["id"] . " / " . $member["openid"] . "/" . $member["nickname"] . "/" . $member["realname"] . "/" . $member["mobile"]);
-		show_json(1);
+		//m("notice")->sendMemberLogMessage($log["id"]);
+
+        $postdata=array(
+            'keyword1'=>array(
+                'value'=>$log["money"],
+                'color' => '#ff510'
+            ),
+            'keyword2'=>array(
+                'value'=>'您的提现申请被拒绝了，资金已返回到您的账户余额，拒绝原因：'.$reason,
+                'color' => '#ff510'
+            ),
+            'keyword3'=>array(
+                'value'=>date("Y-m-d",time()),
+                'color' => '#ff510'
+            ),
+        );
+       $res =  p("app")->mysendNotice($member[0]["openid"], $postdata,'', "qN-Wi2Jw8HnheTTuJRFivIKrevwk70m8lvH4mnf_ad0");
+       plog("finance.log.refuse", "拒绝余额度提现 ID: " . $log["id"] . " 金额: " . $log["money"] . " <br/>会员信息:  ID: " . $member["id"] . " / " . $member["openid"] . "/" . $member["nickname"] . "/" . $member["realname"] . "/" . $member["mobile"]);
+       show_json(1);
 	}
 	public function recharge() 
 	{
@@ -532,5 +560,14 @@ class Log_EweiShopV2Page extends WebPage
 	{
 		$this->main(1);
 	}
+
+	/**
+     * 今日提现账单
+     */
+	public function todayinfo()
+    {
+        $data = m('finance')->todayinfo();
+        include($this->template());
+    }
 }
 ?>

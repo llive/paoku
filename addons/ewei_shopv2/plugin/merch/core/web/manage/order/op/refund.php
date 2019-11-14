@@ -44,6 +44,8 @@ class Refund_EweiShopV2Page extends MerchWebPage
 		$merchid = $_W['merchid'];
 		if ($_W['ispost']) 
 		{
+		    $order=pdo_get("ewei_shop_order",array('id' => $item['id'], 'uniacid' => $_W['uniacid']));
+		    
 			$shopset = $_S['shop'];
 			if (empty($item['refundstate'])) 
 			{
@@ -324,6 +326,15 @@ class Refund_EweiShopV2Page extends MerchWebPage
 					$item['deductcredit2'] = $dededuct__refund_price;
 					m('order')->setDeductCredit2($item);
 				}
+				//用户消费卡路里修改
+				if ($item["deductprice"]>0){
+				    m('member')->setCredit($item['openid'], 'credit1', $item["deductprice"], array(0, $shopset['name'] . '购物返还抵扣卡路里 卡路里' . $item["deductprice"] . '订单号: ' . $item['ordersn']));
+				}
+				//折扣宝
+				if ($order["discount_price"]>0){
+				    m('member')->setCredit($item['openid'], 'credit3', $order["discount_price"], array(0, $shopset['name'] . '购物返还抵扣折扣宝 折扣宝' . $order["discount_price"] . '订单号: ' . $item['ordersn']));
+				}
+				
 				$change_refund['reply'] = '';
 				$change_refund['status'] = 1;
 				$change_refund['refundtype'] = $refundtype;
@@ -356,6 +367,12 @@ class Refund_EweiShopV2Page extends MerchWebPage
 					$log .= ' 父订单号:' . $ordersn;
 				}
 				plog('order.op.refund', $log);
+				if ($order["share_id"]!=0&&$order["share_price"]!=0){
+				    //订单赏金
+				    $share_member=pdo_get("ewei_shop_member",array("id"=>$order["share_id"]));
+				    pdo_update("ewei_shop_member",array('frozen_credit2'=>$share_member["frozen_credit2"]-$order["share_price"]),array('id'=>$order["share_id"]));
+				    pdo_update("ewei_shop_member_credit2",array('frozen'=>-1),array("orderid"=>$item['id']));
+				}
 			}
 			else if ($refundstatus == -1) 
 			{
@@ -397,6 +414,12 @@ class Refund_EweiShopV2Page extends MerchWebPage
 				{
 					$salesreal = pdo_fetchcolumn('select ifnull(sum(total),0) from ' . tablename('ewei_shop_order_goods') . ' og ' . ' left join ' . tablename('ewei_shop_order') . ' o on o.id = og.orderid ' . ' where og.goodsid=:goodsid and o.status>=1 and o.uniacid=:uniacid and o.merchid = :merchid limit 1', array(':goodsid' => $g['id'], ':uniacid' => $uniacid, ':merchid' => $merchid));
 					pdo_update('ewei_shop_goods', array('salesreal' => $salesreal), array('id' => $g['id']));
+				}
+				if ($order["share_id"]!=0&&$order["share_price"]!=0){
+				    //订单赏金
+				    $share_member=pdo_get("ewei_shop_member",array("id"=>$order["share_id"]));
+				    pdo_update("ewei_shop_member",array('frozen_credit2'=>$share_member["frozen_credit2"]-$order["share_price"]),array('id'=>$order["share_id"]));
+				    pdo_update("ewei_shop_member_credit2",array('frozen'=>-1),array("orderid"=>$item['id']));
 				}
 			}
 			show_json(1);

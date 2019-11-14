@@ -687,6 +687,18 @@ class Perm_EweiShopV2ComModel extends ComModel {
                 "delete" => "删除",
                 "stock" => "修改库存",
                 "active" => "激活设置"
+            ),
+            "memlevel" => array(
+                "text" => "等级年卡",
+                "add" => "添加",
+                "edit" => "修改",
+                "delete" => "删除",
+            ),
+            "acceleration" => array(
+                "text" => "加速宝",
+                "add" => "添加",
+                "edit" => "修改",
+                "delete" => "删除",
             )
         );
     }
@@ -895,6 +907,14 @@ class Perm_EweiShopV2ComModel extends ComModel {
                 "text" => "绑定送卡路里",
                 "main" => "查看",
                 "edit" => "编辑"
+            ),
+            "giftbag" => array(
+                "text" => "礼包管理",
+                "main" => "查看",
+                "add" => "添加",
+                "edit" => "编辑",
+                "status" => "开关",
+                "delete" => "删除"
             )
         );
         if ($this->isopen("sale", true) && $this->is_perm_plugin("sale", true)) {
@@ -931,14 +951,17 @@ class Perm_EweiShopV2ComModel extends ComModel {
             "recharge" => array(
                 "text" => "充值",
                 "credit1" => "充值卡路里-log",
-                "credit2" => "充值余额-log"
+                "credit2" => "充值余额-log",
+                "credit3" => "充值折扣宝-log"
             ) ,
             "credit" => array(
                 "text" => "卡路里余额明细",
                 "credit1" => "卡路里明细",
                 "credit1.export" => "导出卡路里明细",
                 "credit2" => "余额明细",
-                "credit2.export" => "导出余额明细"
+                "credit2.export" => "导出余额明细",
+                "credit3" => "折扣宝明细",
+                "credit3.export" => "导出折扣宝明细"
             )
         );
     }
@@ -1053,6 +1076,40 @@ class Perm_EweiShopV2ComModel extends ComModel {
                 "main" => "查看",
                 "edit" => "修改-log"
             ) ,
+            "notive"=>array(
+                "text"=>"热点关注",
+                "add"=>"添加文章",
+                "edit"=>"修改",
+                "delete"=>"删除",
+            ),
+            "question"=>array(
+                "text"=>"问题反馈",
+                "detail"=>"详情",
+                "delete"=>"删除",
+            ),
+            "help"=>array(
+                "text"=>"帮助指南",
+                "add"=>"添加文章",
+                "edit"=>"修改",
+                "delete"=>"删除",
+            ),
+            "senword"=>array(
+                "text"=>"达人圈",
+                "main"=>"敏感词",
+                "circle"=>"列表",
+                "audit"=>"审核",
+                "detail"=>"详情",
+                "delete"=>"删除",
+                "comment"=>"评论",
+            ),
+            "reading"=>array(
+                "text"=>"每日必读",
+                "main"=>"列表",
+                "add"=>"添加",
+                "edit"=>"修改",
+                "delete"=>"删除",
+                "comment"=>"评论列表",
+            ),
             "follow" => array(
                 "text" => "分享及关注",
                 "main" => "查看",

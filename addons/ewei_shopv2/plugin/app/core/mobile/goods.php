@@ -5,12 +5,17 @@
 require(EWEI_SHOPV2_PLUGIN . "app/core/page_mobile.php");
 class Goods_EweiShopV2Page extends AppMobilePage 
 {
+    
+   
 	public function get_list() 
 	{
 		global $_GPC;
 		global $_W;
-		$couponid = intval($_GPC["couponid"]);
-		if( !empty($couponid) ) 
+		
+		$page = $_GPC['page']?$_GPC['page']:0;
+        $select = $_GPC['select']?$_GPC['select']:0;
+        $couponid = intval($_GPC["couponid"]);
+		if( !empty($couponid) )
 		{
 			$this->getlistbyCoupon($couponid);
 		}
@@ -27,14 +32,34 @@ class Goods_EweiShopV2Page extends AppMobilePage
 			{
 				$args["nocommission"] = intval($_GPC["nocommission"]);
 			}
+
+            if( isset($_GPC["deduct"]) )
+            {
+                $args["order"] = '(minprice-deduct) asc,deduct desc';
+                $args["ishot"] = 1;
+                $args["deducts"] = 1;
+            }
+
 			$goods = m("goods")->getList($args);
 			$saleout = (!empty($_W["shopset"]["shop"]["saleout"]) ? tomedia($_W["shopset"]["shop"]["saleout"]) : "/static/images/saleout-2.png");
 			$goods_list = array( );
 			if( 0 < $goods["total"] ) 
 			{
 				$goods_list = $goods["list"];
-				foreach( $goods_list as $index => $item ) 
+				foreach( $goods_list as $index => $item )
 				{
+                    if ($_GPC['cate']==4){
+                        if(in_array($item['id'],array(3,4,5,7))){
+                            $goods_list[$index]['memberthumb'] = $goods_list[$index]['thumb'];
+                            $goods_list[$index]['thumb'] = $this->levelurlup($item['id']);
+                        }
+                        $goods_list[$index]['salesreal'] = $goods_list[$index]['sales'] = $goods_list[$index]['salesreal']*21+rand(0,10);
+                    }
+				    if($_GPC['cate']==4){//会员产品获取有效期
+                        $agentlevel = pdo_fetch("select * from " . tablename("ewei_shop_commission_level") . " where id=:id limit 1", array( ":id" => $item['agentlevel']));
+                        $goods_list[$index]['available'] = $agentlevel['available'];
+                        $goods_list[$index]['content'] = strip_tags($item['content']);
+                    }
 					if( $goods_list[$index]["isdiscount"] && time() < $goods_list[$index]["isdiscount_time"] ) 
 					{
 						$goods_list[$index]["isdiscount"] = 0;
@@ -49,11 +74,19 @@ class Goods_EweiShopV2Page extends AppMobilePage
 					{
 						$goods_list[$index]["saleout"] = $saleout;
 					}
+
+                    if( isset($_GPC["deduct"]) ){
+                        $goods_list[$index]["showprice"] = round($goods_list[$index]["minprice"]-$goods_list[$index]["deduct"],2);
+                    }
+//                    if($this->appversion()!=1 && in_array($goods_list[$index]['id'],array(366,367))){//不显示
+//                        unset($goods_list[$index]);
+//                    }
 				}
 			}
 			app_json(array( "list" => $goods_list, "total" => $goods["total"], "pagesize" => $args["pagesize"] ));
 		}
 	}
+
 	public function getlistbyCoupon() 
 	{
 		global $_GPC;
@@ -109,6 +142,13 @@ class Goods_EweiShopV2Page extends AppMobilePage
 		}
 		$goods = pdo_fetch("select * from " . tablename("ewei_shop_goods") . " where id=:id and uniacid=:uniacid limit 1", array( ":id" => $id, ":uniacid" => $_W["uniacid"] ));
 		$member = m("member")->getMember($openid);
+
+		//绑定推荐会员
+        if($_GPC['mid'] && !$member['agentid']){
+            $agentmemberInfo = pdo_get('ewei_shop_member', array('id' =>$_GPC['mid']));
+            if($agentmemberInfo)  m('member')->setagent(array('agentopenid'=>trim($agentmemberInfo["openid"]),'openid'=>$member['openid']));
+        }
+
 		$showlevels = ($goods["showlevels"] != "" ? explode(",", $goods["showlevels"]) : array( ));
 		$showgroups = ($goods["showgroups"] != "" ? explode(",", $goods["showgroups"]) : array( ));
 		$showgoods = 0;
@@ -290,7 +330,7 @@ class Goods_EweiShopV2Page extends AppMobilePage
 				$goods["cannotbuy"] = "超出最大购买数量";
 			}
 		}
-		$levelid = $member["level"];
+		$levelid = $member["agentlevel"];
 		$groupid = $member["groupid"];
 		$goods["levelbuy"] = "1";
 		if( $goods["buylevels"] != "" ) 
@@ -300,7 +340,7 @@ class Goods_EweiShopV2Page extends AppMobilePage
 			{
 				$goods["levelbuy"] = 0;
 				$goods["canbuy"] = 0;
-				$goods["cannotbuy"] = "购买级别不够";
+				$goods["cannotbuy"] = $this->canByLevels($buylevels);
 			}
 		}
 		$goods["groupbuy"] = "1";
@@ -695,7 +735,7 @@ class Goods_EweiShopV2Page extends AppMobilePage
 		unset($goods["costprice"]);
 		unset($goods["originalprice"]);
 		unset($goods["totalcnf"]);
-		unset($goods["salesreal"]);
+		//unset($goods["salesreal"]);
 		unset($goods["score"]);
 		unset($goods["taobaoid"]);
 		unset($goods["taotaoid"]);
@@ -1054,6 +1094,75 @@ class Goods_EweiShopV2Page extends AppMobilePage
 		}
 		$goods["minprice"] = number_format($minprice, 2);
 		$goods["maxprice"] = number_format($maxprice, 2);
+
+		//判断是否在赏金任务内
+		$merchid=$goods["merchid"];
+		if ($merchid==0){
+		    $goods["reward"]=0;
+		    $goods["share_price"]=0;
+		    $goods["click_price"]=0;
+		    $goods["commission"]=0;
+		}else{
+		    $merch=pdo_get("ewei_shop_merch_user",array('id'=>$merchid));
+		    if ($merch["reward_type"]==0){
+		        $goods["reward"]=0;
+		        $goods["share_price"]=0;
+		        $goods["click_price"]=0;
+		        $goods["commission"]=0;
+		    }else{
+		        if ($merch["reward_type"]==1){
+		            //指定商品
+		            //获取商家赏金
+		            $reward=pdo_fetchall('select * from'.tablename('ewei_shop_merch_reward').'where is_end=0 and type=1 and merch_id=:merchid',array(':merchid'=>$merchid));
+		            
+		            $g=array();
+		            if (!empty($reward)){
+		                foreach ($reward as $k=>$v){
+		                    $g[$k]["reward_id"]=$v["id"];
+		                    $g[$k]["goodsid"]=unserialize($v["goodid"]);
+		                }
+		            }
+		            if (!empty($g)){
+		                $reward_id=m("merch")->order_good($g,$id);
+		                if ($reward_id){
+		                $r=pdo_get("ewei_shop_merch_reward",array('id'=>$reward_id));   
+		                $goods["reward"]=1;
+		                $goods["share_price"]=$r["share_price"];
+		                $goods["click_price"]=$r["click_price"];
+		                $goods["commission"]=$r["commission"]*$goods["maxprice"]/100;
+		            }else{
+		                $goods["reward"]=0;
+		                $goods["share_price"]=0;
+		                $goods["click_price"]=0;
+		                $goods["commission"]=0;
+		            }
+		            
+		            }else{
+		                $goods["reward"]=0;
+		            }
+		        }else{
+		           //全部商品
+		           $reward=pdo_get("ewei_shop_merch_reward",array("merch_id"=>$merchid,"is_end"=>0,"type"=>2));
+		           if ($reward){
+		               $goods["reward"]=1;
+		               $goods["share_price"] = $reward["share_price"];
+		               $goods["click_price"] = $reward["click_price"];
+		               $goods["commission"] = $reward["commission"]*$goods["maxprice"]/100;
+		           }else{
+		               $goods["reward"]=0;
+		               $goods["share_price"]=0;
+		               $goods["click_price"]=0;
+		               $goods["commission"]=0;
+		           }
+		        }
+		    }
+		}
+
+	        $goods['showshare'] = 0;
+	        $goods['showprice'] = sprintf('%.2f',$minprice-$goods['deduct']);
+	        $goods['sales'] = intval($goods['sales']);
+	        $goods['salesreal'] = intval($goods['salesreal']);
+	        $goods['total'] = intval($goods['total']);
 		app_json(array( "goods" => $goods ));
 	}
 	public function getCommission($goods, $level, $set) 
@@ -1906,5 +2015,86 @@ class Goods_EweiShopV2Page extends AppMobilePage
 		}
 		return array( "is_openmerch" => $is_openmerch, "merch_plugin" => $merch_plugin, "merch_data" => $merch_data );
 	}
+
+
+    /**
+     * 更改会员主图
+     * @param $thumb
+     * @param $id
+     */
+    private function levelurlup($id){
+        switch ($id){
+            case 3:
+                return 'https://'.$_SERVER['SERVER_NAME']."/attachment/images/1/2019/03/XMUU5yU9jJ7yt58CE5O8UW5ogaAUm5.png";
+                break;
+            case 4:
+                return 'https://'.$_SERVER['SERVER_NAME']."/attachment/images/1/2019/03/QT03Aprq37zHAwMt07vhVZP3w0wvht.png";
+                break;
+            case 5:
+                return 'https://'.$_SERVER['SERVER_NAME']."/attachment/images/1/2019/03/a8LsNhn44h183OH00505XL39hS0s37.png";
+                break;
+            case 7:
+                return 'https://'.$_SERVER['SERVER_NAME']."/attachment/images/1/2019/03/Xx7X7pa91M99YofuyfKJOo7P878fa7.png";
+                break;
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * 可购买的会员级别
+     * @param $cids
+     */
+    public function canByLevels($cids){
+        if(count($cids)>1 && in_array(1,$cids)) return "健康达人以上级别专享";
+        if(count($cids)==1 && in_array(1,$cids)) return "健康达人专享";
+        if(count($cids)==1 && in_array(2,$cids)) return "星选达人专享";
+        if(count($cids)==1 && in_array(5,$cids)) return "店主专享";
+        if(count($cids)>1 && in_array(2,$cids)) return "星选达人以上级别专享";
+        return "您当前会员等级没有购买权限";
+    }
+
+    /**
+     * 获取小程序版本
+     */
+    public function appversion()
+    {
+        $referer = $_SERVER['HTTP_REFERER'];
+        preg_match('/https:\/\/servicewechat\.com\/(.+?)\/(.+?)\/page-frame\.html/i', $referer,$matches);
+        if($matches[1]){
+            $res = array(
+                'app_id' => $matches[1],
+                'app_version' => $matches[2],
+            );
+            if($res['app_version']>1) return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * 获得倒计时 结束时间
+     */
+    public function get_end()
+    {
+        global $_W;
+        global $_GPC;
+        $uniacid = $_W['uniacid'];
+        $id = $_GPC['id'];
+        $goods = pdo_get('ewei_shop_goods',['id'=>$id,'uniacid'=>$uniacid]);
+        if($id == "" || empty($goods)){
+            show_json(0,['msg'=>'商品信息错误']);
+        }
+        if($goods['istime'] == 1 ){
+            if($goods['timestart'] > time()){
+                show_json(1,['start'=>$goods['timestart'],'msg'=>"秒杀尚未开始"]);
+            }elseif($goods['timeend'] > time()){
+                show_json(2,['end'=>$goods['timeend'],'msg'=>"秒杀进行中"]);
+            }elseif($goods['timeend'] < time()){
+                show_json(3,['msg'=>"秒杀结束"]);
+            }
+        }else{
+            show_json(4,['msg'=>"不是秒杀商品"]);
+        }
+    }
 }
 ?>

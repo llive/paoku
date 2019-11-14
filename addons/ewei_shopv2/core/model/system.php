@@ -571,6 +571,11 @@ class System_EweiShopV2Model {
                                 "title" => "排版设置",
                                 "route" => "sort",
                                 "desc" => "店铺首页排版设置"
+                            ),
+                            array(
+                                "title" => "赏金任务设置",
+                                "route" => "purchase",
+                                "desc" => "赏金任务购买设置"
                             )
                         )
                     ) ,
@@ -578,9 +583,24 @@ class System_EweiShopV2Model {
                         "title" => "商城",
                         "items" => array(
                             array(
+                                "title" => "小程序广告位",
+                                "route" => "adsense",
+                                "desc" => "小程序首页广告位"
+                            ) ,
+                            array(
                                 "title" => "公告管理",
                                 "route" => "notice",
                                 "desc" => "店铺公告管理"
+                            ) ,
+                            array(
+                                "title" => "私信助手",
+                                "route" => "notice.email",
+                                "desc" => "私信发送"
+                            ) ,
+                            array(
+                                "title" => "私信记录",
+                                "route" => "notice.log",
+                                "desc" => "私信发送记录"
                             ) ,
                             array(
                                 "title" => "评价管理",
@@ -702,9 +722,34 @@ class System_EweiShopV2Model {
                         "route" => "level"
                     ) ,
                     array(
+                        "title" => "运动日记",
+                        "route" => "sport"
+                    ) ,
+                    array(
+                        "title" => "加速宝",
+                        "route" => "acceleration"
+                    ) ,
+                    array(
+                        "title" => "限额宝",
+                        "route" => "limit"
+                    ) ,
+                    array(
+                        "title" => "贡献值解读",
+                        "route" => "devote"
+                    ) ,
+                    array(
+                        "title" => "贡献值奖励",
+                        "route" => "devote.reward"
+                    ) ,
+                    array(
+                        "title" => "等级年卡",
+                        "route" => "memlevel"
+                    ) ,
+                    array(
                         "title" => "标签组",
                         "route" => "group"
                     ) ,
+                   
                     array(
                         "title" => "排行榜设置",
                         "route" => "rank",
@@ -757,6 +802,16 @@ class System_EweiShopV2Model {
                         "desc" => "全部订单列表",
                         "permmust" => "order.list.main"
                     ) ,
+                    array(
+                        "title" => "加速宝订单",
+                        "items" => array(
+                            array(
+                                "title" => "列表",
+                                "route" => "accelerate",
+                                "desc" => "加速宝订单"
+                            ) 
+                        )
+                    ),
                     array(
                         "title" => "维权",
                         "route" => "list",
@@ -898,9 +953,27 @@ class System_EweiShopV2Model {
                             array(
                                 "title" => "绑定送卡路里",
                                 "route" => "bindmobile"
+                            ),
+                            array(
+                                "title" => "礼包管理",
+                                "route" => "giftbag"
+                            ),
+                            array(
+                                "title" => "边看边买",
+                                "route" => "lookbuy"
                             )
                         )
                     ) ,
+                    array(
+                        "title"=>"红包引流",
+                        "route" => "bribe",
+                        "items"=>array(
+                            array(
+                                "title"=>"背景音乐",
+                                "route" => "index",
+                            )
+                        ),
+                    ),
                     array(
                         "title" => "优惠券",
                         "route" => "coupon",
@@ -992,6 +1065,14 @@ class System_EweiShopV2Model {
                             array(
                                 "title" => "余额明细",
                                 "route" => "credit2"
+                            ),
+                            array(
+                                "title" => "折扣宝明细",
+                                "route" => "credit3"
+                            ),
+                            array(
+                                "title" => "贡献值明细",
+                                "route" => "credit4"
                             )
                         )
                     ) ,
@@ -1053,8 +1134,24 @@ class System_EweiShopV2Model {
                                 "route" => "member_cost"
                             ) ,
                             array(
-                                "title" => "增长趋势",
-                                "route" => "member_increase"
+                                "title" => "卡路里排行榜",
+                                "route" => "member_credit/member_credit1"
+                            ),
+                             array(
+                                 "title" => "余额排行榜",
+                                 "route" => "member_credit/member_credit2"
+                             ),
+                            array(
+                                "title" => "折扣宝排行榜",
+                                "route" => "member_credit/member_credit3"
+                            ),
+                            array(
+                                "title" => "贡献值排行榜",
+                                "route" => "member_credit/member_credit4"
+                            ),
+                            array(
+                                 "title" => "增长趋势",
+                                 "route" => "member_increase"
                             )
                         )
                     )
@@ -1079,6 +1176,14 @@ class System_EweiShopV2Model {
                                 "route" => "shop"
                             ) ,
                             array(
+                                "title" => "api对接",
+                                "route" => "api"
+                            ) ,
+                            array(
+                                "title" => "幸运转盘",
+                                "route" => "game"
+                            ) ,
+                            array(
                                 "title" => "关注及分享",
                                 "route" => "follow"
                             ) ,
@@ -1086,6 +1191,7 @@ class System_EweiShopV2Model {
                                 "title" => "商城状态",
                                 "route" => "close"
                             ) ,
+                           
                             array(
                                 "title" => "模板设置",
                                 "route" => "templat"
@@ -1095,9 +1201,79 @@ class System_EweiShopV2Model {
                                 "route" => "wap",
                                 "iscom" => "wap",
                                 "permcom" => "sms"
+                            ),
+                            array(
+                                "title" => "商品置顶",
+                                "route" => "shoptop"
+                            ) 
+                        )
+                    ) ,
+                    array(
+                        "title" => "页面优化",
+                        "items" => array(
+                            array(
+                                "title" => "首页背景图",
+                                "route" => "sport"
+                            ) ,
+                            array(
+                                "title" => "首页icon",
+                                "route" => "sportindex"
+                            ) ,
+                            array(
+                                "title" => "达人中心",
+                                "route" => "daren"
+                            ),
+                            array(
+                                "title"=>"我的",
+                                "route"=>"my"
+                            ),
+                            array(
+                                "title"=>"助力海报",
+                                "route"=>"share_help"
+                            ),
+                        )
+                    ) ,
+                    array(
+                        "title" => "新手攻略",
+                        "items" => array(
+                            array(
+                                "title" => "热点关注",
+                                "route" => "notive"
+                            ) ,
+                            array(
+                                "title" => "问题反馈",
+                                "route" => "question"
+                            ),
+                            array(
+                                "title" => "帮助指南",
+                                "route" => "help"
                             )
                         )
                     ) ,
+                    array(
+                        "title" => "达人圈",
+                        "items" => array(
+                            array(
+                                "title" => "敏感词",
+                                "route" => "senword"
+                            ),
+                            array(
+                                "title" => "列表",
+                                "route" => "senword.circle"
+                            )
+                        ),
+                    ) ,
+                    
+                    array(
+                        "title" => "每日必读",
+                        "items" => array(
+                            array(
+                                "title" => "列表",
+                                "route" => "reading"
+                            )
+                        ),
+                    ) ,
+                    
                     array(
                         "title" => "交易",
                         "items" => array(
@@ -1193,6 +1369,10 @@ class System_EweiShopV2Model {
                                 "route" => "area"
                             ) ,
                             array(
+                                "title"=>"快递设置",
+                                "route"=>"express_set"
+                            ) ,
+                            array(
                                 "title" => "物流信息接口",
                                 "route" => "express"
                             )
@@ -1251,6 +1431,16 @@ class System_EweiShopV2Model {
                             array(
                                 "title" => "优惠券入口",
                                 "route" => "coupon"
+                            )
+                        )
+                    ),
+                    array(
+                        "title" => "小程序显示",
+                        "route" => "wechart",
+                        "items" => array(
+                            array(
+                                "title" => "版本显示控制",
+                                "route" => "version"
                             )
                         )
                     )
@@ -1725,6 +1915,9 @@ class System_EweiShopV2Model {
         if (!empty($history_url)) {
             $arr["history"] = json_decode($history_url, true);
         }
+        //获取未审核的数目
+        $arr["drcircle"]=pdo_fetchcolumn("select count(1) from ".tablename("ewei_shop_member_drcircle")." where audit=0 and is_view=0 and is_del=0");
+        $arr["question"]=pdo_fetchcolumn("select count(1) from ".tablename("ewei_shop_notive_question")."where is_answer=0");
         return $arr;
     }
     protected function getOrderTotal($status = 0) {

@@ -183,16 +183,67 @@
 </div>
 
 
+<div class="region-goods-details row">
+    <div class="region-goods-left col-sm-2">
+        贡献值奖励
+    </div>
+    <div class="region-goods-right col-sm-10">
+        <div class="form-group">
+            <label class="col-sm-2 control-label">
+                推荐贡献值
+            </label>
+            <div class="col-sm-9 col-xs-12">
+                {ife 'goods' $item}
+                <div class="input-group fixsingle-input-group">
+                    <input type="text" name="agent_devote" id="agent_devote" class="form-control" value="{$item['agent_devote']}"/>
+                <span class="input-group-addon">
+                           
+                            </span>
+                </div>
+                <p class="help-block">
+                    会员下单购买了，推荐人奖励贡献值
+                </p>
+                
+                {/if}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="col-sm-2 control-label">
+                自购贡献值
+            </label>
+            <div class="col-sm-9 col-xs-12">
+                {ife 'goods' $item}
+                <div class="input-group fixsingle-input-group">
+                    <input type="text" name="my_devote" id="my_devote" class="form-control" value="{$item['my_devote']}"
+                    />
+                <span class="input-group-addon">
+                                
+                            </span>
+                </div>
+                <p class="help-block">
+                     用户自己下单，奖励贡献值
+                </p>
+                
+               
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+
 {if !is_error(redis())}
 <div class="region-goods-details row">
     <div class="region-goods-left col-sm-2">
         抵扣设置
     </div>
     <div class="region-goods-right col-sm-10">
-        <div class="form-group">
-            <label class="col-sm-2 control-label">
-                卡路里抵扣
-            </label>
+    
+        <div class="form-group" style="margin-left:125px;">
+           <div class="col-sm-9 col-xs-12">
+            <label class="radio-inline"><input type="radio" name="deduct_type" value="1" {if $item['deduct_type'] == 1}checked="true"{/if}   /> 卡路里抵扣</label>
+		   <label class="radio-inline"><input type="radio" name="deduct_type" value="2" {if $item['deduct_type'] == 2}checked="true"{/if}/>折扣宝抵扣</label>
+           </div>
             <div class="col-sm-9 col-xs-12">
                 {ife 'goods' $item}
                 <div class='input-group fixsingle-input-group'>
@@ -209,7 +260,7 @@
                     允许多件累计抵扣
                 </label>
             <span class="help-block">
-                            如果设置0，则不支持卡路里抵扣
+                            如果设置0，则不支持抵扣
                         </span>
                 {else}
                 <div class='form-control-static'>
@@ -219,6 +270,8 @@
                 {/if}
             </div>
         </div>
+        
+        
         <div class="form-group">
             <label class="col-sm-2 control-label">
                 余额抵扣
@@ -248,7 +301,6 @@
     </div>
 </div>
 {/if}
-
 <!--重复购买-->
 <div class="region-goods-details row">
     <div class="region-goods-left col-sm-2">
