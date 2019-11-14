@@ -22,15 +22,26 @@
                    <!--     <?php  if($set['level']>=1) { ?><th>一级佣金比例</th><?php  } ?>
                         <?php  if($set['level']>=2) { ?><th>二级佣金比例</th><?php  } ?>
                         <?php  if($set['level']>=3) { ?><th>三级佣金比例</th><?php  } ?>-->
+                        <th>每日兑换卡路里</th>
+                        <th>加速天数</th>
                         <th>极差奖</th>
                         <th>店主收益</th>
-                        <th>升级条件</th>
+                        <th>升级条件</th> 
                         <th style="width: 65px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php  if(is_array($list)) { foreach($list as $row) { ?>
                     <tr <?php  if($row['id']=='default') { ?>style='background:#f2f2f2'<?php  } ?>>
+                    <td><?php  echo $row['levelname'];?></td>
+                    <td><?php  echo $row['duihuan'];?></td>
+                    <?php  if($row['id']=='default') { ?>
+                  <td>  0天</td>
+                  <?php  } else { ?>
+                    <td><?php  echo $row['accelerate_day'];?>天</td>
+                    
+                    <?php  } ?>
+                  
                     <td><?php  echo $row['jicha'];?></td>
                     <td><?php  echo $row['dianzhu'];?></td>
     <!--                    <td><?php  echo $row['levelname'];?><?php  if($row['id']=='default') { ?>【默认等级】<?php  } ?></td>

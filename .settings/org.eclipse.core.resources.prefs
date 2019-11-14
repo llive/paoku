@@ -1,4 +1,11 @@
 eclipse.preferences.version=1
+encoding//addons/ewei_shopv2/plugin/commission/template/web/level/index.html=UTF-8
+encoding//addons/ewei_shopv2/plugin/commission/template/web_v3/level/index.html=UTF-8
+encoding//addons/ewei_shopv2/plugin/commission/template/web_v3/level/post.html=UTF-8
+encoding//addons/ewei_shopv2/plugin/mmanage/template/mobile/default/login.html=UTF-8
+encoding//addons/ewei_shopv2/template/web_v3/finance/credit.html=UTF-8
+encoding//addons/ewei_shopv2/template/web_v3/member/index.html=UTF-8
+encoding//addons/ewei_shopv2/template/web_v3/member/list.html=UTF-8
 encoding//web/index.php=UTF-8
 encoding//web/themes/default/user/login.html=UTF-8
 encoding/<project>=UTF-8
